@@ -31,7 +31,7 @@ except ImportError:
 class AudioWebSocketServer:
     """WebSocket server for real-time audio streaming"""
     
-    def __init__(self, port=8765, audio_device='hw:0,0', password='audiopirate', use_ssl=True, cert_dir='certs', gain=3.0):
+    def __init__(self, port=8765, audio_device='hw:0,0', password='audiopirate', use_ssl=True, cert_dir='certs', gain=2.0):
         self.port = port
         self.audio_device = audio_device
         self.password_hash = hashlib.sha256(password.encode()).hexdigest()

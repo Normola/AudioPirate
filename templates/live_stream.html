@@ -431,6 +431,12 @@
                 // Create script processor for audio playback
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
                 let processCount = 0;
+                
+                // DC blocking filter state (removes DC offset that causes clicks)
+                let dcBlockerL = 0;
+                let dcBlockerR = 0;
+                const dcAlpha = 0.995;
+                
                 scriptNode.onaudioprocess = (event) => {
                     const outputL = event.outputBuffer.getChannelData(0);
                     const outputR = event.outputBuffer.getChannelData(1);
@@ -445,8 +451,15 @@
                     if (isPlaying && bufferedSamples >= samplesNeeded) {
                         // Read from ring buffer
                         for (let i = 0; i < outputL.length; i++) {
-                            outputL[i] = ringBuffer[readPos];
-                            outputR[i] = ringBuffer[readPos + 1];
+                            const sampleL = ringBuffer[readPos];
+                            const sampleR = ringBuffer[readPos + 1];
+                            
+                            // DC blocking filter (high-pass to remove DC offset)
+                            dcBlockerL = dcAlpha * (dcBlockerL + sampleL - (i > 0 ? outputL[i-1] : sampleL));
+                            dcBlockerR = dcAlpha * (dcBlockerR + sampleR - (i > 0 ? outputR[i-1] : sampleR));
+                            
+                            outputL[i] = dcBlockerL;
+                            outputR[i] = dcBlockerR;
                             readPos = (readPos + 2) % ringBufferSize;
                         }
                         bufferedSamples -= samplesNeeded;
