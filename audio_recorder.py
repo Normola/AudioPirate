@@ -32,6 +32,7 @@ class AudioRecorder:
         self.frames = []
         self.current_filename = None
         self.recording_start_time = None
+        self.input_device_index = None
         
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
@@ -41,9 +42,24 @@ class AudioRecorder:
                 self.audio = pyaudio.PyAudio()
                 self.FORMAT = pyaudio.paInt16
                 
-                # Get default input device info
-                default_input = self.audio.get_default_input_device_info()
-                print(f"Default audio input: {default_input['name']}")
+                # Find ADAU7002 device (dual mic) if available
+                input_device_index = None
+                for i in range(self.audio.get_device_count()):
+                    dev_info = self.audio.get_device_info_by_index(i)
+                    if 'adau7002' in dev_info['name'].lower():
+                        input_device_index = i
+                        print(f"Found ADAU7002 device: {dev_info['name']}")
+                        break
+                
+                if input_device_index is None:
+                    # Fall back to default input
+                    default_input = self.audio.get_default_input_device_info()
+                    input_device_index = default_input['index']
+                    print(f"Using default audio input: {default_input['name']}")
+                else:
+                    print(f"Using ADAU7002 dual microphones")
+                
+                self.input_device_index = input_device_index
                 print(f"Audio recorder initialized: {self.RATE}Hz, {self.CHANNELS} channels")
             except Exception as e:
                 print(f"Failed to initialize PyAudio: {e}")
@@ -82,6 +98,7 @@ class AudioRecorder:
                 channels=self.CHANNELS,
                 rate=self.RATE,
                 input=True,
+                input_device_index=self.input_device_index,
                 frames_per_buffer=self.CHUNK
             )
             

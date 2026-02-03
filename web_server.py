@@ -19,9 +19,23 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
         
     def log_message(self, format, *args):
         """Override to reduce log spam"""
-        # Only log errors
-        if args[1][0] != '2':  # Not a 2xx response
-            super().log_message(format, *args)
+        # Only log successful requests and errors (not favicon 404s)
+        if args[0].startswith('GET /favicon.ico'):
+            return  # Suppress favicon requests
+        # Only log errors (not 2xx or 3xx responses)
+        if args[1][0] in ['4', '5']:
+            return  # Suppress error logs
+        # Log successful file access
+        if args[1][0] in ['2', '3']:
+            print(f"Web: {args[0]} - {args[1]}")
+            
+    def handle(self):
+        """Override handle to catch broken pipe errors"""
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            # Client disconnected - this is normal, ignore it
+            pass
 
 
 class WebServer:
