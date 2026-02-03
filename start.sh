@@ -24,19 +24,20 @@ fi
 # Kill any existing ngrok processes
 echo "🧹 Cleaning up existing ngrok processes..."
 pkill -f ngrok || true
+sleep 1
 
 # Start ngrok for HTTPS web server (port 8000) in background
 echo "🌐 Starting ngrok tunnel for web server (port 8000)..."
-ngrok http 8000 --log=stdout > ngrok_web.log 2>&1 &
+ngrok http 8000 --log=stdout --log-format=json > ngrok_web.log 2>&1 &
 NGROK_WEB_PID=$!
 
-# Start ngrok for WebSocket server (port 8765) in background  
-echo "🌐 Starting ngrok tunnel for WebSocket (port 8765)..."
-ngrok http 8765 --log=stdout > ngrok_ws.log 2>&1 &
+# Start ngrok for WebSocket server using TCP tunnel (port 8765) in background
+echo "🌐 Starting ngrok TCP tunnel for WebSocket (port 8765)..."
+ngrok tcp 8765 --log=stdout --log-format=json > ngrok_ws.log 2>&1 &
 NGROK_WS_PID=$!
 
 # Wait a moment for ngrok to start
-sleep 3
+sleep 4
 
 # Get ngrok URLs
 echo ""
@@ -48,12 +49,14 @@ try:
     for tunnel in data['tunnels']:
         proto = tunnel['proto']
         url = tunnel['public_url']
-        addr = tunnel['config']['addr']
-        if '8000' in addr:
+        name = tunnel['name']
+        if proto == 'https':
             print(f\"  Web UI: {url}\")
-        elif '8765' in addr:
-            print(f\"  WebSocket: {url.replace('https://', 'wss://')}\")
-except:
+        elif proto == 'tcp':
+            print(f\"  WebSocket: {url} (use this in browser's WebSocket connection)\")
+            print(f\"  ⚠️  Note: You'll need to update live_stream.html to use this TCP tunnel URL\")
+except Exception as e:
+    print(f'  Error: {e}')
     print('  Check ngrok dashboard at: http://localhost:4040')
 " 2>/dev/null || echo "  Check ngrok dashboard at: http://localhost:4040"
 
