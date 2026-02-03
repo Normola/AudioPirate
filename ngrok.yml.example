@@ -1,0 +1,15 @@
+version: "2"
+authtoken: YOUR_NGROK_AUTHTOKEN_HERE
+
+tunnels:
+  web:
+    proto: http
+    addr: 8000
+    schemes:
+      - https
+  
+  websocket:
+    proto: http
+    addr: 8765
+    schemes:
+      - https
