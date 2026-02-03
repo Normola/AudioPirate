@@ -4,6 +4,8 @@ Display Handler for AudioPirate (Pimoroni Pirate Audio)
 Supports ST7789 SPI display (240x240)
 """
 
+import time
+
 try:
     import ST7789
     from PIL import Image, ImageDraw, ImageFont
@@ -20,6 +22,9 @@ class Display:
         self.device = None
         self.image = None
         self.draw = None
+        self.backlight_on = True
+        self.last_activity = time.time()
+        self.timeout_seconds = 20
         
         if DISPLAY_AVAILABLE:
             try:
@@ -156,6 +161,34 @@ class Display:
                 
     def cleanup(self):
         """Clean up display resources"""
+    
+    def set_backlight(self, state):
+        """Turn backlight on or off"""
+        if self.device:
+            try:
+                self.device.set_backlight(1 if state else 0)
+                self.backlight_on = state
+                if state:
+                    print("Display backlight ON")
+                else:
+                    print("Display backlight OFF")
+            except Exception as e:
+                print(f"Backlight control error: {e}")
+        else:
+            print(f"[MOCK] Backlight: {'ON' if state else 'OFF'}")
+    
+    def reset_timeout(self):
+        """Reset the inactivity timer"""
+        self.last_activity = time.time()
+        if not self.backlight_on:
+            self.set_backlight(True)
+    
+    def check_timeout(self):
+        """Check if screen should timeout and disable backlight"""
+        if self.backlight_on and (time.time() - self.last_activity) > self.timeout_seconds:
+            self.set_backlight(False)
+            return True
+        return False
         if self.device:
             self.clear()
         print("Display cleanup complete")

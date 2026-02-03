@@ -276,14 +276,14 @@
         const ctx = visualizer.getContext('2d');
         
         let authToken = null;
-        
-        let audioContext;
-        let analyser;
-        let dataArray;
-        let animationId;
-        let mediaSource;
-        let sourceBuffer;
-        let audio;
+        let websocket = null;
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let animationId = null;
+        let scriptNode = null;
+        let audioQueue = [];
+        let sampleRate = 48000;
         
         // Resize canvas
         visualizer.width = visualizer.offsetWidth;
@@ -295,43 +295,55 @@
             loginError.textContent = '';
             
             try {
-                const response = await fetch('/authenticate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
+                // Connect to WebSocket
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${wsProtocol}//${window.location.hostname}:8765`;
+                websocket = new WebSocket(wsUrl);
                 
-                const result = await response.json();
+                websocket.onopen = () => {
+                    // Send authentication
+                    websocket.send(JSON.stringify({
+                        type: 'authenticate',
+                        password: password
+                    }));
+                };
                 
-                if (result.success) {
-                    authToken = result.token;
-                    loginContainer.style.display = 'none';
-                    streamContainer.style.display = 'block';
-                    visualizer.width = visualizer.offsetWidth;
-                    visualizer.height = visualizer.offsetHeight;
-                } else {
-                    loginError.textContent = 'Invalid password. Please try again.';
-                    passwordInput.value = '';
-                    passwordInput.focus();
-                }
+                websocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.type === 'auth_success') {
+                            authToken = data.token;
+                            loginContainer.style.display = 'none';
+                            streamContainer.style.display = 'block';
+                            visualizer.width = visualizer.offsetWidth;
+                            visualizer.height = visualizer.offsetHeight;
+                        } else if (data.type === 'auth_failed') {
+                            loginError.textContent = 'Invalid password. Please try again.';
+                            passwordInput.value = '';
+                            passwordInput.focus();
+                            websocket.close();
+                        }
+                    } catch (e) {
+                        // Ignore non-JSON messages
+                    }
+                };
+                
+                websocket.onerror = (error) => {
+                    loginError.textContent = 'Connection error. Is the server running?';
+                    console.error('WebSocket error:', error);
+                };
+                
             } catch (error) {
-                loginError.textContent = 'Authentication error: ' + error.message;
-            }
-        });
-        
-        // Allow Enter key to submit password
-        passwordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                loginBtn.click();
+                loginError.textContent = 'Connection error: ' + error.message;
             }
         });
         
         // Logout handler
         logoutBtn.addEventListener('click', () => {
             // Stop stream if playing
-            if (audio) {
-                audio.pause();
-                audio.src = '';
+            if (websocket) {
+                websocket.close();
             }
             if (audioContext) {
                 audioContext.close();
@@ -342,6 +354,8 @@
             
             // Reset UI
             authToken = null;
+            websocket = null;
+            audioContext = null;
             passwordInput.value = '';
             startBtn.disabled = false;
             stopBtn.disabled = true;
@@ -360,28 +374,76 @@
                 // Create audio context
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
-                // Fetch audio stream with authentication
-                const streamUrl = '/stream_audio?token=' + encodeURIComponent(authToken);
-                const response = await fetch(streamUrl);
-                
-                if (!response.ok) {
-                    throw new Error('Stream not available');
-                }
-                
-                // Create audio element
-                audio = new Audio();
-                audio.src = streamUrl;
-                audio.autoplay = true;
-                
                 // Create analyser
-                const source = audioContext.createMediaElementSource(audio);
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 2048;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
                 
-                source.connect(analyser);
+                // Create script processor for audio playback
+                scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
+                scriptNode.onaudioprocess = (event) => {
+                    const outputL = event.outputBuffer.getChannelData(0);
+                    const outputR = event.outputBuffer.getChannelData(1);
+                    
+                    if (audioQueue.length > 0) {
+                        const chunk = audioQueue.shift();
+                        for (let i = 0; i < outputL.length; i++) {
+                            if (i * 2 < chunk.length) {
+                                outputL[i] = chunk[i * 2];
+                                outputR[i] = chunk[i * 2 + 1];
+                            } else {
+                                outputL[i] = 0;
+                                outputR[i] = 0;
+                            }
+                        }
+                    } else {
+                        outputL.fill(0);
+                        outputR.fill(0);
+                    }
+                };
+                
+                scriptNode.connect(analyser);
                 analyser.connect(audioContext.destination);
                 
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                // Handle WebSocket messages for audio data
+                websocket.onmessage = (event) => {
+                    if (event.data instanceof Blob) {
+                        // Binary audio data
+                        event.data.arrayBuffer().then(buffer => {
+                            // Convert 32-bit int to Float32 (-1.0 to 1.0)
+                            const int32Array = new Int32Array(buffer);
+                            const float32Array = new Float32Array(int32Array.length);
+                            for (let i = 0; i < int32Array.length; i++) {
+                                float32Array[i] = int32Array[i] / 2147483648.0;
+                            }
+                            audioQueue.push(float32Array);
+                            
+                            // Limit queue size
+                            if (audioQueue.length > 10) {
+                                audioQueue.shift();
+                            }
+                        });
+                    } else {
+                        // JSON message
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'audio_config') {
+                                sampleRate = data.sampleRate;
+                                console.log('Audio config:', data);
+                            } else if (data.type === 'error') {
+                                throw new Error(data.message);
+                            }
+                        } catch (e) {
+                            console.error('Message error:', e);
+                        }
+                    }
+                };
+                
+                // Request stream
+                websocket.send(JSON.stringify({
+                    type: 'start_stream',
+                    token: authToken
+                }));
                 
                 // Update UI
                 startBtn.disabled = true;
@@ -400,17 +462,22 @@
         });
         
         stopBtn.addEventListener('click', () => {
-            if (audio) {
-                audio.pause();
-                audio.src = '';
+            if (websocket) {
+                websocket.send(JSON.stringify({ type: 'stop_stream' }));
             }
             if (audioContext) {
                 audioContext.close();
+                audioContext = null;
+            }
+            if (scriptNode) {
+                scriptNode.disconnect();
+                scriptNode = null;
             }
             if (animationId) {
                 cancelAnimationFrame(animationId);
             }
             
+            audioQueue = [];
             startBtn.disabled = false;
             stopBtn.disabled = true;
             status.className = 'status';

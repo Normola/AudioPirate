@@ -8,8 +8,9 @@ Audio recording application for Raspberry Pi Zero 2 W with Pimoroni Pirate Audio
 - **ST7789 Display**: Real-time status display on 240x240 color LCD
 - **Button Controls**: Four physical buttons for recording control
 - **Microphone Gain Control**: Software gain adjustment (-5dB to +20dB) for far-field recording
-- **Live Audio Streaming**: Real-time audio streaming via web browser with visualization
-- **Web Server**: Built-in HTTP server for accessing recordings and live stream
+- **Live Audio Streaming**: Real-time low-latency streaming via WebSocket + Web Audio API
+- **Web Server**: Built-in HTTPS server for accessing recordings and live stream
+- **Password Authentication**: Secure access to web interface and live stream
 - **Mock Mode**: Can run on non-Pi systems for development/testing
 
 ## Hardware Requirements
@@ -148,6 +149,19 @@ Audio files are saved in the `recordings/` directory with timestamps:
 - Bit depth: 32-bit
 - Filename: `recording_<timestamp>.wav`
 
+### Web Interface
+
+1. **File Access** (HTTPS, port 8000):
+   - Navigate to `https://<pi-ip>:8000`
+   - Accept self-signed certificate warning
+   - Browse and download recordings
+
+2. **Live Stream** (WebSocket, port 8765):
+   - Navigate to `https://<pi-ip>:8000/live`
+   - Enter password (default: `audiopirate`)
+   - Click "Start Stream" for real-time audio
+   - See [WEBSOCKET_STREAMING.md](WEBSOCKET_STREAMING.md) for details
+
 ### Web Access
 
 The app automatically starts a web server on port 8000:
@@ -192,11 +206,11 @@ Edit the class constants in each module to customize:
 - Verify with: `sudo raspi-config` -> Interface Options -> SPI -> Enabled
 - Check for errors in: `sudo dmesg | grep spi`
 
-### Audio issuesadau7002")
+### Audio issues
 - Verify `/boot/config.txt` has: `dtoverlay=adau7002-simple`
 - Test recording: `arecord -D hw:0,0 -f S32_LE -r 48000 -c 2 -d 5 test.wav`
 - Check audio devices: `arecord -l` (should list ADAU7002)
-- Audio uses ALSA directly for better MEMS mic suppor
+- Audio uses ALSA directly for better MEMS mic support
 - For Dual Mic variant, ensure `dtoverlay=adau7002-simple` is in config.txt
 
 ### Button issues
@@ -211,9 +225,26 @@ Edit the class constants in each module to customize:
 - Audio access: `sudo usermod -a -G audio $USER`
 - Then logout/login or reboot
 
+### Live streaming issues
+- WebSocket connection failed: Check firewall allows port 8765
+- No audio playing: Check browser console, verify microphones working
+- High CPU usage: See [WEBSOCKET_STREAMING.md](WEBSOCKET_STREAMING.md) for optimization
+- Authentication errors: Password is case-sensitive, tokens expire after 24h
+
+## Documentation
+
+- [WEBSOCKET_STREAMING.md](WEBSOCKET_STREAMING.md) - Live audio streaming setup and optimization
+- [HTTPS_SETUP.md](HTTPS_SETUP.md) - SSL certificate configuration
+- [AUTHENTICATION.md](AUTHENTICATION.md) - Password authentication system
+- [ALSA_SETUP.md](ALSA_SETUP.md) - Audio configuration and gain control
+
 ## Future Enhancements
 
-- [ ] Audio level metering d on display
+- [ ] Audio level metering on display during recording
+- [ ] Recording list browser on display
+- [ ] File management (delete) via web interface
+- [ ] Automatic reconnection for WebSocket streaming
+- [ ] Recording controls in web interface
 - [ ] File management via web interface (delete, rename)
 - [ ] Audio format options (MP3, OGG)ns (MP3, OGG)
 - [ ] WiFi file transfer

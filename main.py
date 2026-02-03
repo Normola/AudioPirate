@@ -10,6 +10,8 @@ from display import Display
 from buttons import ButtonHandler
 from audio_recorder import AudioRecorder
 from web_server import WebServer
+from ws_audio_server import AudioWebSocketServer
+import asyncio
 
 
 class AudioPirateApp:
@@ -18,7 +20,8 @@ class AudioPirateApp:
         self.display = Display()
         self.buttons = ButtonHandler(self.on_button_press)
         self.recorder = AudioRecorder()
-        self.web_server = WebServer(directory="recordings", port=8000)
+        self.web_server = WebServer(directory="recordings", port=8000, use_ssl=True)
+        self.ws_server = AudioWebSocketServer(port=8765, password='audiopirate')
         
         # App state
         self.is_recording = False
@@ -81,7 +84,7 @@ class AudioPirateApp:
             self.display.show_status(
                 line1="RECORDING",
                 line2=f"Time: {duration:.1f}s",
-                line3=self.recording_name
+                line3=self.recording_name or ""
             )
         else:
             self.display.show_status(
@@ -98,6 +101,10 @@ class AudioPirateApp:
         # Start web server
         self.web_server.start()
         
+        # Start WebSocket server in separate thread
+        ws_thread = threading.Thread(target=self.ws_server.run, daemon=True)
+        ws_thread.start()
+        
         # Initialize display
         self.display.clear()
         self.update_display()
@@ -107,6 +114,10 @@ class AudioPirateApp:
                 # Update display if recording
                 if self.is_recording:
                     self.update_display()
+                
+                # Check for display timeout
+                self.display.check_timeout()
+                
                 time.sleep(0.1)
                 
         except KeyboardInterrupt:

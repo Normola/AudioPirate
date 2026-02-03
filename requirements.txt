@@ -15,6 +15,9 @@ spidev>=3.5
 # Audio
 pyalsaaudio>=0.10.0
 
+# WebSocket for live streaming
+websockets>=12.0
+
 # SSL/HTTPS
 cryptography>=41.0.0
 
