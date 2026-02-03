@@ -21,21 +21,23 @@ except ImportError:
 class AudioRecorder:
     """Audio recorder using ALSA for ADAU7002 dual microphone board"""
     
-    def __init__(self, recordings_dir="recordings"):
+    def __init__(self, recordings_dir="recordings", device="mic_with_gain"):
         """
         Initialize the audio recorder
         
         Args:
             recordings_dir: Directory to save recordings
+            device: ALSA device name (default: mic_with_gain for gain control)
+                   Use 'hw:0,0' for direct hardware access without gain
         """
         self.recordings_dir = Path(recordings_dir)
         self.recordings_dir.mkdir(exist_ok=True)
         
         # Audio configuration for ADAU7002
+        self.device = device
         self.sample_rate = 48000
         self.channels = 2
         self.format = alsaaudio.PCM_FORMAT_S32_LE if ALSA_AVAILABLE else None
-        self.device = "hw:0,0"
         self.chunk_size = 2048
         
         # Recording state
@@ -182,6 +184,65 @@ class AudioRecorder:
         if not self.is_recording or not self.start_time:
             return None
         return time.time() - self.start_time
+        def set_gain(self, percent):
+        """
+        Set microphone gain level (0-100%)
+        Requires asound.conf with softvol plugin
+        
+        Args:
+            percent: Gain level 0-100
+                    0% = -5dB, 50% = ~7.5dB, 100% = +20dB
+        
+        Returns:
+            bool: True if successful
+        """
+        if not ALSA_AVAILABLE:
+            print("ALSA not available, cannot set gain")
+            return False
+        
+        try:
+            import subprocess
+            result = subprocess.run(
+                ['amixer', '-c', '0', 'set', 'Mic Boost', f'{percent}%'],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                print(f"Mic gain set to {percent}%")
+                return True
+            else:
+                print(f"Failed to set gain: {result.stderr}")
+                return False
+        except Exception as e:
+            print(f"Error setting gain: {e}")
+            return False
+    
+    def get_gain(self):
+        """
+        Get current microphone gain level
+        
+        Returns:
+            int: Current gain percentage (0-100), or None if unavailable
+        """
+        if not ALSA_AVAILABLE:
+            return None
+        
+        try:
+            import subprocess
+            result = subprocess.run(
+                ['amixer', '-c', '0', 'get', 'Mic Boost'],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                import re
+                match = re.search(r'\[(\d+)%\]', result.stdout)
+                if match:
+                    return int(match.group(1))
+            return None
+        except Exception as e:
+            print(f"Error getting gain: {e}")
+            return None
     
     def list_recordings(self):
         """

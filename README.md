@@ -66,12 +66,39 @@ sudo raspi-config
 # Navigate to: Interface Options -> SPI -> Enable
 ```
 
-4. Reboot:
+4. Install ALSA configuration for microphone gain control:
+```bash
+# Copy the configuration file
+sudo cp asound.conf /etc/asound.conf
+
+# Initialize ALSA controls
+sudo alsactl init
+
+# Verify the Mic Boost control is available
+amixer -c 0 controls | grep 'Mic Boost'
+```
+
+You can now control microphone gain:
+```bash
+# Set gain to 80% (~15dB boost, good for far-field recording)
+amixer -c 0 set 'Mic Boost' 80%
+
+# Check current gain
+amixer -c 0 get 'Mic Boost'
+```
+
+**Gain range:**
+- 0% = -5dB (quietest, use for close/loud sources)
+- 50% = ~7.5dB (medium boost, balanced)
+- 80% = ~15dB (good for far-field recording)
+- 100% = +20dB (maximum boost, may introduce noise)
+
+5. Reboot:
 ```bash
 sudo reboot
 ```
 
-5. Install system dependencies:
+6. Install system dependencies:
 ```bash
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-dev python3-numpy \
@@ -80,12 +107,12 @@ sudo apt-get install -y python3-pip python3-dev python3-numpy \
     fonts-dejavu fonts-dejavu-core swig liblgpio-dev
 ```
 
-6. Install Python dependencies:
+7. Install Python dependencies:
 ```bash
 pip3 install -r requirements.txt
 ```
 
-7. Run the application:
+8. Run the application:
 ```bash
 python3 main.py
 ```
