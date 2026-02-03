@@ -9,6 +9,8 @@ import struct
 import json
 import hashlib
 import time
+import ssl
+import os
 
 try:
     import websockets
@@ -29,13 +31,16 @@ except ImportError:
 class AudioWebSocketServer:
     """WebSocket server for real-time audio streaming"""
     
-    def __init__(self, port=8765, audio_device='mic_with_gain', password='audiopirate'):
+    def __init__(self, port=8765, audio_device='mic_with_gain', password='audiopirate', use_ssl=True, cert_dir='certs'):
         self.port = port
         self.audio_device = audio_device
         self.password_hash = hashlib.sha256(password.encode()).hexdigest()
         self.auth_tokens = {}  # token -> expiry
         self.server = None
         self.running = False
+        self.use_ssl = use_ssl
+        self.cert_dir = cert_dir
+        self.ssl_context = None
         
     async def authenticate(self, websocket, message):
         """Handle authentication request"""
@@ -148,6 +153,24 @@ class AudioWebSocketServer:
         finally:
             pcm.close()
     
+    def _create_ssl_context(self):
+        """Create SSL context for WSS connections"""
+        cert_file = os.path.join(self.cert_dir, 'cert.pem')
+        key_file = os.path.join(self.cert_dir, 'key.pem')
+        
+        if not os.path.exists(cert_file) or not os.path.exists(key_file):
+            print(f"SSL certificates not found in {self.cert_dir}/")
+            print("WebSocket server will use the same certs as the web server")
+            return None
+        
+        try:
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ssl_context.load_cert_chain(cert_file, key_file)
+            return ssl_context
+        except Exception as e:
+            print(f"Error loading SSL certificates: {e}")
+            return None
+    
     async def handler(self, websocket, path):
         """Handle WebSocket connections"""
         print(f"Client connected from {websocket.remote_address}")
@@ -197,8 +220,25 @@ class AudioWebSocketServer:
         
         self.running = True
         try:
-            self.server = await serve(self.handler, "0.0.0.0", self.port)
-            print(f"WebSocket server started on ws://0.0.0.0:{self.port}")
+            # Setup SSL if enabled
+            if self.use_ssl:
+                self.ssl_context = self._create_ssl_context()
+                if self.ssl_context:
+                    print(f"WebSocket server starting with SSL/TLS (wss://)")
+                else:
+                    print(f"SSL certificates not found, falling back to ws://")
+                    self.use_ssl = False
+            
+            # Start server
+            self.server = await serve(
+                self.handler, 
+                "0.0.0.0", 
+                self.port,
+                ssl=self.ssl_context if self.use_ssl else None
+            )
+            
+            protocol = "wss" if self.use_ssl else "ws"
+            print(f"WebSocket server started on {protocol}://0.0.0.0:{self.port}")
             print("Waiting for connections...")
             
             await asyncio.Future()  # Run forever

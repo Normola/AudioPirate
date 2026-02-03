@@ -21,7 +21,7 @@ class AudioPirateApp:
         self.buttons = ButtonHandler(self.on_button_press)
         self.recorder = AudioRecorder()
         self.web_server = WebServer(directory="recordings", port=8000, use_ssl=True)
-        self.ws_server = AudioWebSocketServer(port=8765, password='audiopirate')
+        self.ws_server = AudioWebSocketServer(port=8765, password='audiopirate', use_ssl=True)
         
         # App state
         self.is_recording = False
