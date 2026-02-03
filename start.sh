@@ -30,7 +30,7 @@ echo "🌐 Starting ngrok tunnel for web server (port 8000)..."
 ngrok http 8000 --log=stdout > ngrok_web.log 2>&1 &
 NGROK_WEB_PID=$!
 
-# Start ngrok for WebSocket server (port 8765) in background
+# Start ngrok for WebSocket server (port 8765) in background  
 echo "🌐 Starting ngrok tunnel for WebSocket (port 8765)..."
 ngrok http 8765 --log=stdout > ngrok_ws.log 2>&1 &
 NGROK_WS_PID=$!
@@ -46,9 +46,15 @@ import sys, json
 try:
     data = json.load(sys.stdin)
     for tunnel in data['tunnels']:
-        print(f\"  {tunnel['name']}: {tunnel['public_url']}\")
+        proto = tunnel['proto']
+        url = tunnel['public_url']
+        addr = tunnel['config']['addr']
+        if '8000' in addr:
+            print(f\"  Web UI: {url}\")
+        elif '8765' in addr:
+            print(f\"  WebSocket: {url.replace('https://', 'wss://')}\")
 except:
-    print('  Run: curl http://localhost:4040/api/tunnels')
+    print('  Check ngrok dashboard at: http://localhost:4040')
 " 2>/dev/null || echo "  Check ngrok dashboard at: http://localhost:4040"
 
 echo ""
