@@ -420,6 +420,32 @@
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 analyser.connect(audioContext.destination);
                 
+                // Setup MediaRecorder for recording functionality
+                recordingStream = audioContext.createMediaStreamDestination();
+                analyser.connect(recordingStream);
+                mediaRecorder = new MediaRecorder(recordingStream.stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        recordedChunks.push(e.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                    a.download = `audiopirate-${timestamp}.webm`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    recordedChunks = [];
+                    console.log('Recording saved');
+                };
+                
                 // Audio playback using queued buffer sources
                 let nextPlayTime = 0;
                 const audioQueue = [];
