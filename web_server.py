@@ -38,12 +38,17 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
         
     def log_message(self, format, *args):
         """Override to reduce log spam"""
-        if args[0].startswith('GET /favicon.ico'):
-            return
-        if args[1][0] in ['4', '5']:
-            return
-        if args[1][0] in ['2', '3']:
-            print(f"Web: {args[0]} - {args[1]}")
+        # Convert all args to strings to handle HTTPStatus objects
+        try:
+            args_str = [str(arg) for arg in args]
+            if len(args_str) > 0 and args_str[0].startswith('GET /favicon.ico'):
+                return
+            if len(args_str) > 1 and args_str[1][0] in ['4', '5']:
+                return
+            if len(args_str) > 1 and args_str[1][0] in ['2', '3']:
+                print(f"Web: {args_str[0]} - {args_str[1]}")
+        except (IndexError, AttributeError):
+            pass
             
     def handle(self):
         """Override handle to catch broken pipe errors"""
@@ -134,11 +139,23 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
             return
         
         try:
-            pcm = alsaaudio.PCM(
-                alsaaudio.PCM_CAPTURE,
-                alsaaudio.PCM_NORMAL,
-                device=self.audio_device
-            )
+            # Try the configured device first, fall back to hw:0,0
+            device = self.audio_device
+            try:
+                pcm = alsaaudio.PCM(
+                    alsaaudio.PCM_CAPTURE,
+                    alsaaudio.PCM_NORMAL,
+                    device=device
+                )
+            except alsaaudio.ALSAAudioError:
+                print(f"Device '{device}' not found, falling back to 'hw:0,0'")
+                device = 'hw:0,0'
+                pcm = alsaaudio.PCM(
+                    alsaaudio.PCM_CAPTURE,
+                    alsaaudio.PCM_NORMAL,
+                    device=device
+                )
+            
             pcm.setchannels(2)
             pcm.setrate(48000)
             pcm.setformat(alsaaudio.PCM_FORMAT_S16_LE)
