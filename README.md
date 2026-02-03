@@ -4,16 +4,18 @@ Audio recording application for Raspberry Pi Zero 2 W with Pimoroni Pirate Audio
 
 ## Features
 
-- **Audio Recording**: Record audio in WAV format (44.1kHz, stereo)
+- **Audio Recording**: Record audio in WAV format (48kHz, stereo, 32-bit)
 - **ST7789 Display**: Real-time status display on 240x240 color LCD
 - **Button Controls**: Four physical buttons for recording control
-- **Web Server**: Built-in HTTP server for accessing recordings via browser
+- **Microphone Gain Control**: Software gain adjustment (-5dB to +20dB) for far-field recording
+- **Live Audio Streaming**: Real-time audio streaming via web browser with visualization
+- **Web Server**: Built-in HTTP server for accessing recordings and live stream
 - **Mock Mode**: Can run on non-Pi systems for development/testing
 
 ## Hardware Requirements
 
 - Raspberry Pi Zero 2 W
-- Pimoroni Pirate Audio board (any variant)
+- Pimoroni Pirate Audio Dual Mic board (with ADAU7002 microphones)
 - MicroSD card (8GB+ recommended)
 
 ## Default GPIO Pin Mapping
@@ -149,9 +151,17 @@ Audio files are saved in the `recordings/` directory with timestamps:
 ### Web Access
 
 The app automatically starts a web server on port 8000:
-- Access recordings from any browser on your network
-- URL displayed on startup: `http://<pi-ip-address>:8000`
-- Browse, download, or play recordings directly from the web interface
+- **Browse recordings**: `http://<pi-ip-address>:8000`
+- **Live audio stream**: `http://<pi-ip-address>:8000/live`
+- Download recordings directly from your browser
+- Real-time audio streaming with waveform visualization
+
+#### Live Streaming
+Access the `/live` endpoint to stream audio in real-time from the microphones. Features:
+- Live audio playback in browser
+- Real-time waveform visualization
+- Volume meter
+- Works on any device with a web browser
 
 ## Project Structure
 

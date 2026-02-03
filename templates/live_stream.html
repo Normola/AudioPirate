@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AudioPirate - Live Stream</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .audio-container {
+            background: #f5f5f5;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #startBtn {
+            background: #667eea;
+            color: white;
+        }
+        
+        #startBtn:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        #stopBtn {
+            background: #ef4444;
+            color: white;
+        }
+        
+        #stopBtn:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .visualizer {
+            width: 100%;
+            height: 120px;
+            background: #fff;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .status.streaming .status-dot {
+            background: #10b981;
+        }
+        
+        .status.error .status-dot {
+            background: #ef4444;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        #volumeBar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        #volumeLevel {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #667eea, #ef4444);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        #passwordInput {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s ease;
+        }
+        
+        #passwordInput:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .login-btn {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .login-btn:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .logout-btn {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .logout-btn:hover {
+            background: #4b5563;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(107, 114, 128, 0.4);
+        }
+        
+        .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: 10px;
+            min-height: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginContainer" class="container">
+        <h1>🔒 Authentication Required</h1>
+        <p class="subtitle">Enter password to access live audio stream</p>
+        
+        <div class="audio-container">
+            <input type="password" id="passwordInput" placeholder="Enter password" />
+            <button id="loginBtn" class="login-btn">Unlock Stream</button>
+            <div id="loginError" class="error-message"></div>
+        </div>
+        
+        <div class="info">
+            <strong>ℹ️ Security:</strong> Password authentication protects your audio stream from unauthorized access.
+        </div>
+    </div>
+
+    <!-- Stream Interface (hidden initially) -->
+    <div id="streamContainer" class="container" style="display: none;">
+        <h1>🎤 Live Audio Stream</h1>
+        <p class="subtitle">Stream live audio from AudioPirate microphones</p>
+        
+        <div class="audio-container">
+            <canvas id="visualizer" class="visualizer"></canvas>
+            
+            <div id="volumeBar">
+                <div id="volumeLevel"></div>
+            </div>
+            
+            <div id="status" class="status">
+                <div class="status-dot"></div>
+                <span id="statusText">Ready to stream</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">Start Stream</button>
+            <button id="stopBtn" disabled>Stop Stream</button>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+        
+        <div class="info">
+            <strong>ℹ️ About:</strong> This streams live audio from the ADAU7002 dual microphones.
+            Audio is captured at 48kHz stereo and streamed to your browser in real-time.
+        </div>
+    </div>
+
+    <script>
+        const loginContainer = document.getElementById('loginContainer');
+        const streamContainer = document.getElementById('streamContainer');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const visualizer = document.getElementById('visualizer');
+        const volumeLevel = document.getElementById('volumeLevel');
+        const ctx = visualizer.getContext('2d');
+        
+        let authToken = null;
+        
+        let audioContext;
+        let analyser;
+        let dataArray;
+        let animationId;
+        let mediaSource;
+        let sourceBuffer;
+        let audio;
+        
+        // Resize canvas
+        visualizer.width = visualizer.offsetWidth;
+        visualizer.height = visualizer.offsetHeight;
+        
+        // Login handler
+        loginBtn.addEventListener('click', async () => {
+            const password = passwordInput.value;
+            loginError.textContent = '';
+            
+            try {
+                const response = await fetch('/authenticate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    authToken = result.token;
+                    loginContainer.style.display = 'none';
+                    streamContainer.style.display = 'block';
+                    visualizer.width = visualizer.offsetWidth;
+                    visualizer.height = visualizer.offsetHeight;
+                } else {
+                    loginError.textContent = 'Invalid password. Please try again.';
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            } catch (error) {
+                loginError.textContent = 'Authentication error: ' + error.message;
+            }
+        });
+        
+        // Allow Enter key to submit password
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
+        });
+        
+        // Logout handler
+        logoutBtn.addEventListener('click', () => {
+            // Stop stream if playing
+            if (audio) {
+                audio.pause();
+                audio.src = '';
+            }
+            if (audioContext) {
+                audioContext.close();
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            // Reset UI
+            authToken = null;
+            passwordInput.value = '';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            status.className = 'status';
+            statusText.textContent = 'Ready to stream';
+            ctx.clearRect(0, 0, visualizer.width, visualizer.height);
+            volumeLevel.style.width = '0%';
+            
+            // Show login screen
+            streamContainer.style.display = 'none';
+            loginContainer.style.display = 'block';
+        });
+        
+        startBtn.addEventListener('click', async () => {
+            try {
+                // Create audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Fetch audio stream with authentication
+                const streamUrl = '/stream_audio?token=' + encodeURIComponent(authToken);
+                const response = await fetch(streamUrl);
+                
+                if (!response.ok) {
+                    throw new Error('Stream not available');
+                }
+                
+                // Create audio element
+                audio = new Audio();
+                audio.src = streamUrl;
+                audio.autoplay = true;
+                
+                // Create analyser
+                const source = audioContext.createMediaElementSource(audio);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                // Update UI
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                status.className = 'status streaming';
+                statusText.textContent = 'Streaming...';
+                
+                // Start visualization
+                visualize();
+                
+            } catch (error) {
+                console.error('Error starting stream:', error);
+                status.className = 'status error';
+                statusText.textContent = 'Error: ' + error.message;
+            }
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            if (audio) {
+                audio.pause();
+                audio.src = '';
+            }
+            if (audioContext) {
+                audioContext.close();
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            status.className = 'status';
+            statusText.textContent = 'Stopped';
+            
+            // Clear visualizer
+            ctx.clearRect(0, 0, visualizer.width, visualizer.height);
+            volumeLevel.style.width = '0%';
+        });
+        
+        function visualize() {
+            animationId = requestAnimationFrame(visualize);
+            
+            analyser.getByteTimeDomainData(dataArray);
+            
+            // Clear canvas
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, visualizer.width, visualizer.height);
+            
+            // Draw waveform
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#667eea';
+            ctx.beginPath();
+            
+            const sliceWidth = visualizer.width / dataArray.length;
+            let x = 0;
+            
+            for (let i = 0; i < dataArray.length; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * visualizer.height / 2;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                
+                x += sliceWidth;
+            }
+            
+            ctx.lineTo(visualizer.width, visualizer.height / 2);
+            ctx.stroke();
+            
+            // Calculate volume
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                const normalized = (dataArray[i] - 128) / 128;
+                sum += normalized * normalized;
+            }
+            const rms = Math.sqrt(sum / dataArray.length);
+            const volume = Math.min(100, rms * 200);
+            volumeLevel.style.width = volume + '%';
+        }
+    </script>
+</body>
+</html>
