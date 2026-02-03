@@ -158,7 +158,7 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
             
             pcm.setchannels(2)
             pcm.setrate(48000)
-            pcm.setformat(alsaaudio.PCM_FORMAT_S32_LE)  # 32-bit for ADAU7002
+            pcm.setformat(alsaaudio.PCM_FORMAT_S16_LE)  # 16-bit for browser compatibility
             pcm.setperiodsize(2048)
             
             self.send_response(200)
@@ -167,18 +167,22 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
             self.send_header('Connection', 'close')
             self.end_headers()
             
-            wav_header = self._create_wav_header(48000, 2, 32)  # 32-bit header
+            wav_header = self._create_wav_header(48000, 2, 16)
             self.wfile.write(wav_header)
             
             print("Starting audio stream...")
+            chunk_count = 0
             try:
                 while True:
                     length, data = pcm.read()
                     if length > 0:
+                        chunk_count += 1
+                        if chunk_count % 50 == 0:  # Log every ~1 second
+                            print(f"Streaming... ({chunk_count} chunks, {len(data)} bytes)")
                         self.wfile.write(data)
                         self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError):
-                print("Client disconnected from audio stream")
+                print(f"Client disconnected from audio stream after {chunk_count} chunks")
             finally:
                 pcm.close()
         except alsaaudio.ALSAAudioError as e:
