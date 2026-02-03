@@ -128,32 +128,19 @@ class AudioRecorder:
             except Exception as e:
                 print(f"Recording error: {e}")
                 break
-                    self.wav_file.writeframes(data)
-                return True
-            except alsaaudio.ALSAAudioError as e:
-                print(f"Error reading from ALSA device: {e}")
-                return False
-        else:
-            # Mock mode: generate silence
-            time.sleep(self.chunk_size / self.sample_rate)
-            mock_data = b'\x00' * (self.chunk_size * self.channels * 4)
-            self.frames.append(mock_data)
-            self.wav_file.writeframes(mock_data)
-            return True
     
     def stop_recording(self):
-        """
-        Stop recording and save the file
-        
-        Returns:
-            dict: Recording metadata (filename, duration, size)
-        """
+        """Stop recording and save the file"""
         if not self.is_recording:
             print("Not currently recording")
             return None
         
         self.is_recording = False
         duration = time.time() - self.start_time if self.start_time else 0
+        
+        # Wait for recording thread to finish
+        if self.recording_thread and self.recording_thread.is_alive():
+            self.recording_thread.join(timeout=2.0)
         
         # Close WAV file
         if self.wav_file:
