@@ -258,6 +258,11 @@
                 <div id="volumeLevel"></div>
             </div>
             
+            <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 10px;">
+                <label for="gainSlider" style="display: block; margin-bottom: 8px; font-weight: 500;">🔊 Audio Gain: <span id="gainValue">1.0x</span></label>
+                <input type="range" id="gainSlider" min="0" max="10" step="0.1" value="1.0" style="width: 100%;" />
+            </div>
+            
             <div id="status" class="status">
                 <div class="status-dot"></div>
                 <span id="statusText">Ready to stream</span>
@@ -291,6 +296,8 @@
         const statusText = document.getElementById('statusText');
         const visualizer = document.getElementById('visualizer');
         const volumeLevel = document.getElementById('volumeLevel');
+        const gainSlider = document.getElementById('gainSlider');
+        const gainValue = document.getElementById('gainValue');
         const ctx = visualizer.getContext('2d');
         
         let authToken = null;
@@ -302,6 +309,7 @@
         let scriptNode = null;
         let audioQueue = [];
         let sampleRate = 48000;
+        let gainNode = null;
         
         // Recording state
         let isRecording = false;
@@ -312,6 +320,15 @@
         // Resize canvas
         visualizer.width = visualizer.offsetWidth;
         visualizer.height = visualizer.offsetHeight;
+        
+        // Gain slider handler
+        gainSlider.addEventListener('input', () => {
+            const value = parseFloat(gainSlider.value);
+            gainValue.textContent = value.toFixed(1) + 'x';
+            if (gainNode) {
+                gainNode.gain.value = value;
+            }
+        });
         
         // Login handler
         loginBtn.addEventListener('click', async () => {
@@ -418,11 +435,18 @@
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 2048;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                // Create gain node for volume control
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = parseFloat(gainSlider.value);
+                
+                // Audio routing: sources → gainNode → analyser → destination
+                gainNode.connect(analyser);
                 analyser.connect(audioContext.destination);
                 
-                // Setup MediaRecorder for recording functionality
+                // Setup MediaRecorder for recording functionality (connect to gainNode so recording has same gain)
                 recordingStream = audioContext.createMediaStreamDestination();
-                analyser.connect(recordingStream);
+                gainNode.connect(recordingStream);
                 mediaRecorder = new MediaRecorder(recordingStream.stream, {
                     mimeType: 'audio/webm;codecs=opus'
                 });
@@ -470,7 +494,7 @@
                             // Create and schedule buffer source
                             const source = audioContext.createBufferSource();
                             source.buffer = audioBuffer;
-                            source.connect(analyser);
+                            source.connect(gainNode); // Connect to gain node for volume control
                             
                             // Schedule playback
                             const now = audioContext.currentTime;
