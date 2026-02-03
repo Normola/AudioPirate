@@ -384,6 +384,13 @@
             try {
                 // Create audio context
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('Audio context created, state:', audioContext.state);
+                
+                // Resume audio context if suspended (browser autoplay policy)
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    console.log('Audio context resumed, state:', audioContext.state);
+                }
                 
                 // Create analyser
                 analyser = audioContext.createAnalyser();
@@ -392,6 +399,7 @@
                 
                 // Create script processor for audio playback
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
+                let processCount = 0;
                 scriptNode.onaudioprocess = (event) => {
                     const outputL = event.outputBuffer.getChannelData(0);
                     const outputR = event.outputBuffer.getChannelData(1);
@@ -407,6 +415,10 @@
                                 outputR[i] = 0;
                             }
                         }
+                        processCount++;
+                        if (processCount % 50 === 0) {
+                            console.log(`Audio playing: ${processCount} chunks processed, queue size: ${audioQueue.length}`);
+                        }
                     } else {
                         outputL.fill(0);
                         outputR.fill(0);
@@ -417,9 +429,11 @@
                 analyser.connect(audioContext.destination);
                 
                 // Handle WebSocket messages for audio data
+                let dataCount = 0;
                 websocket.onmessage = (event) => {
                     if (event.data instanceof Blob) {
                         // Binary audio data
+                        dataCount++;
                         event.data.arrayBuffer().then(buffer => {
                             // Convert 32-bit int to Float32 (-1.0 to 1.0)
                             const int32Array = new Int32Array(buffer);
@@ -428,6 +442,10 @@
                                 float32Array[i] = int32Array[i] / 2147483648.0;
                             }
                             audioQueue.push(float32Array);
+                            
+                            if (dataCount % 50 === 0) {
+                                console.log(`Received ${dataCount} audio chunks, queue size: ${audioQueue.length}, chunk size: ${int32Array.length} samples`);
+                            }
                             
                             // Limit queue size
                             if (audioQueue.length > 10) {
@@ -438,6 +456,7 @@
                         // JSON message
                         try {
                             const data = JSON.parse(event.data);
+                            console.log('WebSocket message:', data);
                             if (data.type === 'audio_config') {
                                 sampleRate = data.sampleRate;
                                 console.log('Audio config:', data);
