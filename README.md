@@ -115,10 +115,21 @@ sudo apt-get install -y python3-pip python3-dev python3-numpy \
 pip3 install -r requirements.txt
 ```
 
+Or use the install script:
+```bash
+chmod +x install_deps.sh
+./install_deps.sh
+```
+
 8. Run the application:
 ```bash
 python3 main.py
 ```
+
+The application will start:
+- HTTPS web server on port 8000
+- WebSocket server on port 8765 (for live streaming)
+- Display and button controls active
 
 ### Development Mode (Non-Pi Systems)
 
@@ -226,7 +237,38 @@ Edit the class constants in each module to customize:
 - Then logout/login or reboot
 
 ### Live streaming issues
-- WebSocket connection failed: Check firewall allows port 8765
+
+**"Connection error. Is the server running?"**
+1. Check if websockets library is installed:
+   ```bash
+   python3 -c "import websockets; print('OK')"
+   ```
+   If not installed: `pip3 install websockets`
+
+2. Verify WebSocket server is running:
+   ```bash
+   ps aux | grep ws_audio_server
+   # Should show the WebSocket server process
+   ```
+
+3. Check server logs when starting main.py:
+   ```
+   WebSocket server started on ws://0.0.0.0:8765
+   Waiting for connections...
+   ```
+   If you see "WebSocket streaming disabled", install websockets library
+
+4. Test WebSocket server separately:
+   ```bash
+   python3 test_websocket.py
+   ```
+
+5. Check firewall allows port 8765:
+   ```bash
+   sudo ufw allow 8765/tcp
+   ```
+
+**Other streaming issues:**
 - No audio playing: Check browser console, verify microphones working
 - High CPU usage: See [WEBSOCKET_STREAMING.md](WEBSOCKET_STREAMING.md) for optimization
 - Authentication errors: Password is case-sensitive, tokens expire after 24h

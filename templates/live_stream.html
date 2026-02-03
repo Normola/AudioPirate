@@ -330,7 +330,7 @@
                 };
                 
                 websocket.onerror = (error) => {
-                    loginError.textContent = 'Connection error. Is the server running?';
+                    loginError.textContent = 'Connection error. WebSocket server may not be running. Check that websockets library is installed on the Pi.';
                     console.error('WebSocket error:', error);
                 };
                 

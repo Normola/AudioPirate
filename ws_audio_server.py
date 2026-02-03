@@ -196,18 +196,35 @@ class AudioWebSocketServer:
             return
         
         self.running = True
-        self.server = await serve(self.handler, "0.0.0.0", self.port)
-        print(f"WebSocket server started on ws://0.0.0.0:{self.port}")
-        print("Waiting for connections...")
-        
-        await asyncio.Future()  # Run forever
+        try:
+            self.server = await serve(self.handler, "0.0.0.0", self.port)
+            print(f"WebSocket server started on ws://0.0.0.0:{self.port}")
+            print("Waiting for connections...")
+            
+            await asyncio.Future()  # Run forever
+        except Exception as e:
+            print(f"WebSocket server error: {e}")
+            import traceback
+            traceback.print_exc()
     
     def run(self):
-        """Run the server (blocking)"""
+        """Run the server (blocking) - thread-safe"""
+        if not WEBSOCKETS_AVAILABLE:
+            print("WebSocket streaming disabled - websockets library not installed")
+            print("To enable live streaming, run: pip install websockets")
+            return
+            
         try:
-            asyncio.run(self.start())
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self.start())
         except KeyboardInterrupt:
             print("\nShutting down WebSocket server...")
+        except Exception as e:
+            print(f"WebSocket server startup error: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 if __name__ == "__main__":

@@ -126,8 +126,7 @@ class AudioPirateApp:
             self.cleanup()
             
     def cleanup(self):
-        """Clweb_server.stop()
-        self.ean up resources"""
+        """Clean up resources"""
         if self.is_recording:
             self.recorder.stop_recording()
         self.buttons.cleanup()
