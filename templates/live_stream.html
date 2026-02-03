@@ -337,16 +337,16 @@
             
             try {
                 // Connect to WebSocket
-                // When using ngrok, connect to ws:// (not wss://) since ngrok's HTTP tunnel expects plain websocket
+                // Backend WebSocket server runs without SSL - ngrok/proxy handles SSL termination
                 let wsUrl;
                 if (window.location.hostname.includes('ngrok')) {
-                    // Using ngrok - use ws:// and different subdomain
-                    const wsHost = window.location.hostname.replace('audiopirate-web', 'audiopirate-ws');
-                    wsUrl = `ws://${wsHost}`;
-                } else {
-                    // Local network - use wss:// with port 8765
+                    // Using ngrok - replace subdomain and use current protocol (ngrok upgrades to wss)
                     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    wsUrl = `${wsProtocol}//${window.location.hostname}:8765`;
+                    const wsHost = window.location.hostname.replace('audiopirate-web', 'audiopirate-ws');
+                    wsUrl = `${wsProtocol}//${wsHost}`;
+                } else {
+                    // Local network - use ws:// (backend has no SSL) with port 8765
+                    wsUrl = `ws://${window.location.hostname}:8765`;
                 }
                 
                 console.log('Connecting to WebSocket:', wsUrl);
