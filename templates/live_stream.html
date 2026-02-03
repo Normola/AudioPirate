@@ -420,13 +420,14 @@
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 
                 // Create continuous ring buffer for smooth playback
-                const ringBufferSize = 96000 * 2; // 2 seconds of stereo audio for safety
+                const ringBufferSize = 48000 * 2 * 30; // 30 seconds of stereo audio
                 let ringBuffer = new Float32Array(ringBufferSize);
                 let writePos = 0;
                 let readPos = 0;
                 let bufferedSamples = 0;
                 let isPlaying = false;
-                const minBufferSize = 16384; // Larger buffer before starting
+                const minBufferSize = 48000 * 2 * 10; // Wait for 10 seconds of audio before starting
+                const rebufferThreshold = 48000 * 2 * 5; // Rebuffer if drops below 5 seconds
                 
                 // Create script processor for audio playback
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
@@ -448,6 +449,12 @@
                         console.log('Audio playback started');
                     }
                     
+                    // Check if we need to rebuffer (buffer too low)
+                    if (isPlaying && bufferedSamples < rebufferThreshold) {
+                        isPlaying = false;
+                        console.warn('Rebuffering... (buffered:', bufferedSamples, ')');
+                    }
+                    
                     if (isPlaying && bufferedSamples >= samplesNeeded) {
                         // Read from ring buffer
                         for (let i = 0; i < outputL.length; i++) {
@@ -464,12 +471,13 @@
                         }
                         bufferedSamples -= samplesNeeded;
                     } else {
-                        // Not enough data - output silence
-                        outputL.fill(0);
-                        outputR.fill(0);
-                        if (isPlaying) {
-                            console.warn('Buffer underrun! buffered:', bufferedSamples);
-                            isPlaying = false; // Wait for buffer to fill again
+                        // Not enough data - smoothly fade to silence to avoid clicks
+                        for (let i = 0; i < outputL.length; i++) {
+                            const fade = Math.max(0, 1 - (i / 256)); // Smooth 256-sample fade
+                            outputL[i] = dcBlockerL * fade;
+                            outputR[i] = dcBlockerR * fade;
+                            dcBlockerL *= fade;
+                            dcBlockerR *= fade;
                         }
                     }
                 };
