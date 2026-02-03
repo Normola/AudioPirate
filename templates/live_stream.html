@@ -461,12 +461,14 @@
                     }
                 };
                 
+                // Setup audio routing (don't double-connect analyser)
                 scriptNode.connect(analyser);
                 analyser.connect(audioContext.destination);
                 
                 // Setup MediaRecorder for recording functionality
+                // Connect scriptNode directly to recording stream to avoid double-connection
                 recordingStream = audioContext.createMediaStreamDestination();
-                analyser.connect(recordingStream);
+                scriptNode.connect(recordingStream);
                 mediaRecorder = new MediaRecorder(recordingStream.stream, {
                     mimeType: 'audio/webm;codecs=opus'
                 });
