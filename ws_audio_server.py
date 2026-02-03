@@ -207,7 +207,7 @@ class AudioWebSocketServer:
     
     async def handler(self, websocket, path):
         """Handle WebSocket connections"""
-        print(f"Client connected from {websocket.remote_address}")
+        print(f"[WebSocket] Client connected from {websocket.remote_address}, path: {path}")
         token = None
         
         try:
@@ -263,12 +263,15 @@ class AudioWebSocketServer:
                     print(f"[WebSocket] SSL certificates not found, falling back to ws://")
                     self.use_ssl = False
             
-            # Start server
+            # Start server with compression disabled for better ngrok compatibility
             self.server = await serve(
                 self.handler, 
                 "0.0.0.0", 
                 self.port,
-                ssl=self.ssl_context if self.use_ssl else None
+                ssl=self.ssl_context if self.use_ssl else None,
+                compression=None,  # Disable compression for ngrok compatibility
+                ping_interval=20,  # Keep connection alive
+                ping_timeout=20
             )
             
             protocol = "wss" if self.use_ssl else "ws"
