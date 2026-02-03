@@ -433,11 +433,6 @@
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
                 let processCount = 0;
                 
-                // DC blocking filter state (removes DC offset that causes clicks)
-                let dcBlockerL = 0;
-                let dcBlockerR = 0;
-                const dcAlpha = 0.995;
-                
                 scriptNode.onaudioprocess = (event) => {
                     const outputL = event.outputBuffer.getChannelData(0);
                     const outputR = event.outputBuffer.getChannelData(1);
@@ -456,29 +451,17 @@
                     }
                     
                     if (isPlaying && bufferedSamples >= samplesNeeded) {
-                        // Read from ring buffer
+                        // Read directly from ring buffer (no processing to avoid clicks)
                         for (let i = 0; i < outputL.length; i++) {
-                            const sampleL = ringBuffer[readPos];
-                            const sampleR = ringBuffer[readPos + 1];
-                            
-                            // DC blocking filter (high-pass to remove DC offset)
-                            dcBlockerL = dcAlpha * (dcBlockerL + sampleL - (i > 0 ? outputL[i-1] : sampleL));
-                            dcBlockerR = dcAlpha * (dcBlockerR + sampleR - (i > 0 ? outputR[i-1] : sampleR));
-                            
-                            outputL[i] = dcBlockerL;
-                            outputR[i] = dcBlockerR;
+                            outputL[i] = ringBuffer[readPos];
+                            outputR[i] = ringBuffer[readPos + 1];
                             readPos = (readPos + 2) % ringBufferSize;
                         }
                         bufferedSamples -= samplesNeeded;
                     } else {
-                        // Not enough data - smoothly fade to silence to avoid clicks
-                        for (let i = 0; i < outputL.length; i++) {
-                            const fade = Math.max(0, 1 - (i / 256)); // Smooth 256-sample fade
-                            outputL[i] = dcBlockerL * fade;
-                            outputR[i] = dcBlockerR * fade;
-                            dcBlockerL *= fade;
-                            dcBlockerR *= fade;
-                        }
+                        // Not enough data - just output silence
+                        outputL.fill(0);
+                        outputR.fill(0);
                     }
                 };
                 
