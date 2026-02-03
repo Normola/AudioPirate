@@ -5,11 +5,11 @@ Manages button inputs via GPIO pins
 """
 
 try:
-    import RPi.GPIO as GPIO
+    from gpiozero import Button
     GPIO_AVAILABLE = True
 except ImportError:
     GPIO_AVAILABLE = False
-    print("Warning: RPi.GPIO not installed. Buttons will run in mock mode.")
+    print("Warning: gpiozero not installed. Buttons will run in mock mode.")
 
 import time
 import threading
@@ -45,22 +45,15 @@ class ButtonHandler:
         self.callback = callback
         self.last_press_time = {}
         self.mock_mode = not GPIO_AVAILABLE
+        self.buttons = {}
         
         if GPIO_AVAILABLE:
             try:
-                # Setup GPIO
-                GPIO.setmode(GPIO.BCM)
-                GPIO.setwarnings(False)
-                
-                # Configure each button pin
+                # Setup buttons with gpiozero (pull_up=True for active LOW)
                 for button_name, pin in self.BUTTON_PINS.items():
-                    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-                    GPIO.add_event_detect(
-                        pin,
-                        GPIO.FALLING,
-                        callback=lambda channel, btn=button_name: self._on_button_event(btn),
-                        bouncetime=int(self.DEBOUNCE_TIME * 1000)
-                    )
+                    btn = Button(pin, pull_up=True, bounce_time=self.DEBOUNCE_TIME)
+                    btn.when_pressed = lambda b=button_name: self._on_button_event(b)
+                    self.buttons[button_name] = btn
                     self.last_press_time[button_name] = 0
                     
                 print("Button handler initialized successfully")
@@ -129,5 +122,6 @@ class ButtonHandler:
     def cleanup(self):
         """Clean up GPIO resources"""
         if GPIO_AVAILABLE and not self.mock_mode:
-            GPIO.cleanup()
+            for btn in self.buttons.values():
+                btn.close()
         print("Button handler cleanup complete")

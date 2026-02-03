@@ -75,7 +75,7 @@ sudo reboot
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-dev python3-numpy \
     libasound2-dev portaudio19-dev libportaudio2 \
-    python3-spidev python3-rpi.gpio python3-pil \
+    python3-spidev python3-gpiozero python3-pil \
     fonts-dejavu fonts-dejavu-core
 ```
 
@@ -153,9 +153,10 @@ Edit the class constants in each module to customize:
 - For Dual Mic variant, ensure `dtoverlay=adau7002-simple` is in config.txt
 
 ### Button issues
-- Check GPIO permissions: `sudo usermod -a -G gpio $USER`
-- Test manually: `gpio readall` or `pinout`
-- Buttons are active LOW (pull-up resistors enabled)
+- Buttons use gpiozero library (more reliable than RPi.GPIO)
+- No sudo or special permissions needed on recent Raspberry Pi OS
+- If buttons don't work, try: `sudo apt-get install python3-gpiozero`
+- Test button pins: `pinout` (shows GPIO layout)
 
 ### Permission errors
 - GPIO access: `sudo usermod -a -G gpio $USER`
