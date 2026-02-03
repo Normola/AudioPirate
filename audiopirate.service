@@ -1,0 +1,19 @@
+[Unit]
+Description=AudioPirate - Audio Recording and Streaming Service
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/AudioPirate
+ExecStart=/home/pi/AudioPirate/start.sh
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables (if needed)
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+
+[Install]
+WantedBy=multi-user.target
