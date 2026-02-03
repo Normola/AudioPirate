@@ -38,11 +38,27 @@ class Display:
                 self.image = Image.new('RGB', (width, height), color=(0, 0, 0))
                 self.draw = ImageDraw.Draw(self.image)
                 
-                # Load font
-                try:
-                    self.font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-                    self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36)
-                except:
+                # Load font - try multiple paths
+                self.font = None
+                self.font_small = None
+                
+                font_paths = [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+                ]
+                
+                for font_path in font_paths:
+                    try:
+                        self.font = ImageFont.truetype(font_path, 28)
+                        self.font_small = ImageFont.truetype(font_path.replace("-Bold", ""), 20)
+                        print(f"Loaded font from: {font_path}")
+                        break
+                    except Exception as e:
+                        continue
+                
+                if not self.font:
+                    print("WARNING: Could not load TrueType fonts, using default (will be tiny)")
                     self.font = ImageFont.load_default()
                     self.font_small = ImageFont.load_default()
                     
@@ -75,17 +91,17 @@ class Display:
         """Show multiple lines of status information"""
         if self.device:
             self.image.paste((0, 0, 0), [0, 0, self.width, self.height])
-            y_offset = 20
+            y_offset = 30
             
             if line1:
                 self.draw.text((10, y_offset), line1, fill=(255, 255, 255), font=self.font)
-                y_offset += 60
+                y_offset += 40
             if line2:
                 self.draw.text((10, y_offset), line2, fill=(200, 200, 200), font=self.font_small)
-                y_offset += 50
+                y_offset += 35
             if line3:
                 self.draw.text((10, y_offset), line3, fill=(200, 200, 200), font=self.font_small)
-                y_offset += 50
+                y_offset += 35
             if line4:
                 self.draw.text((10, y_offset), line4, fill=(200, 200, 200), font=self.font_small)
             

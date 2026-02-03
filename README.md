@@ -75,7 +75,8 @@ sudo reboot
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-dev python3-numpy \
     libasound2-dev portaudio19-dev libportaudio2 \
-    python3-spidev python3-rpi.gpio python3-pil
+    python3-spidev python3-rpi.gpio python3-pil \
+    fonts-dejavu fonts-dejavu-core
 ```
 
 6. Install Python dependencies:
