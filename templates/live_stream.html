@@ -397,45 +397,49 @@
                 analyser.fftSize = 2048;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 
+                // Create continuous ring buffer for smooth playback
+                const ringBufferSize = 48000 * 2; // 1 second of stereo audio
+                let ringBuffer = new Float32Array(ringBufferSize);
+                let writePos = 0;
+                let readPos = 0;
+                let bufferedSamples = 0;
+                let isPlaying = false;
+                const minBufferSize = 8192; // Wait for this much data before starting
+                
                 // Create script processor for audio playback
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
                 let processCount = 0;
-                let lastChunk = null;
                 scriptNode.onaudioprocess = (event) => {
                     const outputL = event.outputBuffer.getChannelData(0);
                     const outputR = event.outputBuffer.getChannelData(1);
+                    const samplesNeeded = outputL.length * 2; // stereo
                     
-                    if (audioQueue.length > 0) {
-                        const chunk = audioQueue.shift();
-                        
-                        // Fill output buffer
+                    // Start playing only when we have enough buffered
+                    if (!isPlaying && bufferedSamples >= minBufferSize) {
+                        isPlaying = true;
+                        console.log('Starting playback with buffer:', bufferedSamples);
+                    }
+                    
+                    if (isPlaying && bufferedSamples >= samplesNeeded) {
+                        // Read from ring buffer
                         for (let i = 0; i < outputL.length; i++) {
-                            if (i * 2 < chunk.length) {
-                                outputL[i] = chunk[i * 2];
-                                outputR[i] = chunk[i * 2 + 1];
-                            } else {
-                                // Smoothly fade to zero if chunk is short
-                                const fade = Math.max(0, 1 - (i - chunk.length/2) / 100);
-                                outputL[i] = lastChunk && lastChunk.length > i * 2 ? lastChunk[i * 2] * fade : 0;
-                                outputR[i] = lastChunk && lastChunk.length > i * 2 + 1 ? lastChunk[i * 2 + 1] * fade : 0;
-                            }
+                            outputL[i] = ringBuffer[readPos];
+                            outputR[i] = ringBuffer[readPos + 1];
+                            readPos = (readPos + 2) % ringBufferSize;
                         }
-                        lastChunk = chunk;
+                        bufferedSamples -= samplesNeeded;
+                        
                         processCount++;
                         if (processCount % 50 === 0) {
-                            console.log(`Audio playing: ${processCount} chunks processed, queue size: ${audioQueue.length}`);
+                            console.log(`Playing: ${processCount} chunks, buffered: ${bufferedSamples} samples`);
                         }
                     } else {
-                        // No data - smoothly fade out to prevent clicks
-                        if (lastChunk) {
-                            for (let i = 0; i < outputL.length; i++) {
-                                const fade = Math.max(0, 1 - i / 100);
-                                outputL[i] = lastChunk && lastChunk.length > i * 2 ? lastChunk[i * 2] * fade : 0;
-                                outputR[i] = lastChunk && lastChunk.length > i * 2 + 1 ? lastChunk[i * 2 + 1] * fade : 0;
-                            }
-                        } else {
-                            outputL.fill(0);
-                            outputR.fill(0);
+                        // Not enough data - output silence
+                        outputL.fill(0);
+                        outputR.fill(0);
+                        if (isPlaying) {
+                            console.warn('Buffer underrun! buffered:', bufferedSamples);
+                            isPlaying = false; // Wait for buffer to fill again
                         }
                     }
                 };
@@ -453,27 +457,24 @@
                         event.data.arrayBuffer().then(buffer => {
                             // Convert 32-bit int to Float32 (-1.0 to 1.0)
                             const int32Array = new Int32Array(buffer);
-                            const float32Array = new Float32Array(int32Array.length);
                             let maxSample = 0;
+                            
+                            // Write directly to ring buffer
                             for (let i = 0; i < int32Array.length; i++) {
-                                float32Array[i] = int32Array[i] / 2147483648.0;
-                                maxSample = Math.max(maxSample, Math.abs(float32Array[i]));
+                                const sample = int32Array[i] / 2147483648.0;
+                                ringBuffer[writePos] = sample;
+                                writePos = (writePos + 1) % ringBufferSize;
+                                maxSample = Math.max(maxSample, Math.abs(sample));
                             }
+                            bufferedSamples = Math.min(bufferedSamples + int32Array.length, ringBufferSize);
                             
                             if (maxSample > peakLevel) {
                                 peakLevel = maxSample;
                             }
                             
-                            audioQueue.push(float32Array);
-                            
                             if (dataCount % 50 === 0) {
-                                console.log(`Received ${dataCount} audio chunks, queue: ${audioQueue.length}, chunk: ${int32Array.length} samples, PEAK LEVEL: ${(peakLevel * 100).toFixed(1)}%`);
-                                peakLevel = 0; // Reset for next period
-                            }
-                            
-                            // Limit queue size
-                            if (audioQueue.length > 10) {
-                                audioQueue.shift();
+                                console.log(`Received ${dataCount} chunks, buffered: ${bufferedSamples}, chunk: ${int32Array.length} samples, PEAK: ${(peakLevel * 100).toFixed(1)}%`);
+                                peakLevel = 0;
                             }
                         });
                     } else {
