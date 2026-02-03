@@ -6,6 +6,7 @@ Records stereo audio at 48kHz with 32-bit samples
 import os
 import wave
 import time
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -39,6 +40,7 @@ class AudioRecorder:
         
         # Recording state
         self.is_recording = False
+        self.recording_thread = None
         self.pcm = None
         self.wav_file = None
         self.current_filename = None
@@ -102,21 +104,30 @@ class AudioRecorder:
         self.frames = []
         self.is_recording = True
         self.start_time = time.time()
+        # Start recording thread
+        if ALSA_AVAILABLE:
+            self.recording_thread = threading.Thread(target=self._record_loop, daemon=True)
+            self.recording_thread.start()
         
         print(f"Recording started: {self.current_filename}")
         return str(self.current_filename)
     
-    def _record_chunk(self):
-        """Record a single chunk of audio (internal method)"""
-        if not self.is_recording:
-            return False
-            
-        if ALSA_AVAILABLE and self.pcm:
+    def _record_loop(self):
+        """Continuous recording loop (runs in thread)"""
+        while self.is_recording:
             try:
                 # Read audio data from ALSA device
                 length, data = self.pcm.read()
                 if length > 0:
                     self.frames.append(data)
+                    if self.wav_file:
+                        self.wav_file.writeframes(data)
+            except alsaaudio.ALSAAudioError as e:
+                print(f"ALSA read error: {e}")
+                time.sleep(0.01)
+            except Exception as e:
+                print(f"Recording error: {e}")
+                break
                     self.wav_file.writeframes(data)
                 return True
             except alsaaudio.ALSAAudioError as e:
