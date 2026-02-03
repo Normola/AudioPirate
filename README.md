@@ -75,7 +75,7 @@ sudo reboot
 ```bash
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-dev python3-numpy \
-    libasound2-dev portaudio19-dev libportaudio2 \
+    libasound2-dev python3-alsaaudio \
     python3-spidev python3-gpiozero python3-pil \
     fonts-dejavu fonts-dejavu-core swig liblgpio-dev
 ```
@@ -114,8 +114,9 @@ Display and button outputs will print to console. GPIO and audio hardware are si
 
 Audio files are saved in the `recordings/` directory with timestamps:
 - Format: WAV (uncompressed)
-- Sample rate: 44.1kHz
-- Channels: Stereo
+- Sample rate: 48kHz (required for ADAU7002)
+- Channels: Stereo (dual MEMS microphones)
+- Bit depth: 32-bit
 - Filename: `recording_<timestamp>.wav`
 
 ### Web Access
@@ -154,11 +155,11 @@ Edit the class constants in each module to customize:
 - Verify with: `sudo raspi-config` -> Interface Options -> SPI -> Enabled
 - Check for errors in: `sudo dmesg | grep spi`
 
-### Audio issues
-- Check DAC is loaded: `cat /proc/asound/cards` (should show "snd_rpi_hifiberry_dac")
-- Verify `/boot/config.txt` has: `dtoverlay=hifiberry-dac`
-- Test playback: `speaker-test -c2`
-- Check audio devices: `aplay -l` and `arecord -l`
+### Audio issuesadau7002")
+- Verify `/boot/config.txt` has: `dtoverlay=adau7002-simple`
+- Test recording: `arecord -D hw:0,0 -f S32_LE -r 48000 -c 2 -d 5 test.wav`
+- Check audio devices: `arecord -l` (should list ADAU7002)
+- Audio uses ALSA directly for better MEMS mic suppor
 - For Dual Mic variant, ensure `dtoverlay=adau7002-simple` is in config.txt
 
 ### Button issues
