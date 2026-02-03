@@ -99,14 +99,14 @@ class Display:
             self.image.paste((0, 0, 0), [0, 0, self.width, self.height])
             
             # Draw title
-            self.draw.text((10, 20), "RECORDING", fill=(255, 0, 0), font=self.font)
+            self.draw.text((10, 30), "RECORDING", fill=(255, 0, 0), font=self.font)
             
             # Draw level meter (0-100)
             bar_width = int((self.width - 20) * (level / 100.0))
-            self.draw.rectangle([(10, 100), (self.width - 10, 140)], outline=(100, 100, 100), fill=(0, 0, 0))
+            self.draw.rectangle([(10, 120), (self.width - 10, 180)], outline=(100, 100, 100), fill=(0, 0, 0))
             if bar_width > 0:
                 color = (0, 255, 0) if level < 80 else (255, 255, 0) if level < 95 else (255, 0, 0)
-                self.draw.rectangle([(10, 100), (10 + bar_width, 140)], fill=color)
+                self.draw.rectangle([(10, 120), (10 + bar_width, 180)], fill=color)
             
             self.device.display(self.image)
         else:
