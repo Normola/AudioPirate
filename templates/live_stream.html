@@ -337,19 +337,18 @@
             
             try {
                 // Connect to WebSocket
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                
-                // Auto-detect WebSocket URL based on hostname
-                let wsHost;
+                // When using ngrok, connect to ws:// (not wss://) since ngrok's HTTP tunnel expects plain websocket
+                let wsUrl;
                 if (window.location.hostname.includes('ngrok')) {
-                    // Using ngrok - replace 'web' subdomain with 'ws' subdomain
-                    wsHost = window.location.hostname.replace('audiopirate-web', 'audiopirate-ws');
+                    // Using ngrok - use ws:// and different subdomain
+                    const wsHost = window.location.hostname.replace('audiopirate-web', 'audiopirate-ws');
+                    wsUrl = `ws://${wsHost}`;
                 } else {
-                    // Local network - use same hostname with port 8765
-                    wsHost = `${window.location.hostname}:8765`;
+                    // Local network - use wss:// with port 8765
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    wsUrl = `${wsProtocol}//${window.location.hostname}:8765`;
                 }
                 
-                const wsUrl = `${wsProtocol}//${wsHost}`;
                 console.log('Connecting to WebSocket:', wsUrl);
                 websocket = new WebSocket(wsUrl);
                 
