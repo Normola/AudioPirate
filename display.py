@@ -40,8 +40,8 @@ class Display:
                 
                 # Load font
                 try:
-                    self.font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-                    self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
+                    self.font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
+                    self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
                 except:
                     self.font = ImageFont.load_default()
                     self.font_small = ImageFont.load_default()
@@ -75,18 +75,18 @@ class Display:
         """Show multiple lines of status information"""
         if self.device:
             self.image.paste((0, 0, 0), [0, 0, self.width, self.height])
-            y_offset = 20
-            line_height = 30
+            y_offset = 30
+            line_height = 45
             
             if line1:
                 self.draw.text((10, y_offset), line1, fill=(255, 255, 255), font=self.font)
                 y_offset += line_height
             if line2:
                 self.draw.text((10, y_offset), line2, fill=(200, 200, 200), font=self.font_small)
-                y_offset += line_height
+                y_offset += 40
             if line3:
                 self.draw.text((10, y_offset), line3, fill=(200, 200, 200), font=self.font_small)
-                y_offset += line_height
+                y_offset += 35
             if line4:
                 self.draw.text((10, y_offset), line4, fill=(200, 200, 200), font=self.font_small)
             
