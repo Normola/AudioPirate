@@ -298,9 +298,11 @@
                 // Connect to WebSocket
                 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${wsProtocol}//${window.location.hostname}:8765`;
+                console.log('Connecting to WebSocket:', wsUrl);
                 websocket = new WebSocket(wsUrl);
                 
                 websocket.onopen = () => {
+                    console.log('WebSocket connected!');
                     // Send authentication
                     websocket.send(JSON.stringify({
                         type: 'authenticate',
@@ -311,6 +313,7 @@
                 websocket.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
+                        console.log('WebSocket message:', data);
                         
                         if (data.type === 'auth_success') {
                             authToken = data.token;
@@ -326,12 +329,20 @@
                         }
                     } catch (e) {
                         // Ignore non-JSON messages
+                        console.log('Non-JSON message received');
                     }
                 };
                 
                 websocket.onerror = (error) => {
-                    loginError.textContent = 'Connection error. WebSocket server may not be running. Check that websockets library is installed on the Pi.';
                     console.error('WebSocket error:', error);
+                    loginError.textContent = 'Connection error. WebSocket server may not be running. Check that websockets library is installed on the Pi.';
+                };
+                
+                websocket.onclose = (event) => {
+                    console.log('WebSocket closed:', event.code, event.reason);
+                    if (!authToken) {
+                        loginError.textContent = `Connection closed (code: ${event.code}). Server may not be running or SSL certificate issue.`;
+                    }
                 };
                 
             } catch (error) {

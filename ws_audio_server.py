@@ -42,6 +42,8 @@ class AudioWebSocketServer:
         self.cert_dir = cert_dir
         self.ssl_context = None
         
+        print(f"[WebSocket] Initializing server on port {port}, SSL: {use_ssl}")
+        
     async def authenticate(self, websocket, message):
         """Handle authentication request"""
         try:
@@ -250,19 +252,21 @@ class AudioWebSocketServer:
     def run(self):
         """Run the server (blocking) - thread-safe"""
         if not WEBSOCKETS_AVAILABLE:
-            print("WebSocket streaming disabled - websockets library not installed")
-            print("To enable live streaming, run: pip install websockets")
+            print("[WebSocket] DISABLED - websockets library not installed")
+            print("[WebSocket] To enable live streaming, run: pip3 install websockets")
             return
-            
+        
+        print(f"[WebSocket] Starting server thread...")
         try:
             # Create new event loop for this thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+            print(f"[WebSocket] Event loop created")
             loop.run_until_complete(self.start())
         except KeyboardInterrupt:
-            print("\nShutting down WebSocket server...")
+            print("\n[WebSocket] Shutting down...")
         except Exception as e:
-            print(f"WebSocket server startup error: {e}")
+            print(f"[WebSocket] Startup error: {e}")
             import traceback
             traceback.print_exc()
 
