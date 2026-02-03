@@ -430,6 +430,7 @@
                 
                 // Handle WebSocket messages for audio data
                 let dataCount = 0;
+                let peakLevel = 0;
                 websocket.onmessage = (event) => {
                     if (event.data instanceof Blob) {
                         // Binary audio data
@@ -438,13 +439,21 @@
                             // Convert 32-bit int to Float32 (-1.0 to 1.0)
                             const int32Array = new Int32Array(buffer);
                             const float32Array = new Float32Array(int32Array.length);
+                            let maxSample = 0;
                             for (let i = 0; i < int32Array.length; i++) {
                                 float32Array[i] = int32Array[i] / 2147483648.0;
+                                maxSample = Math.max(maxSample, Math.abs(float32Array[i]));
                             }
+                            
+                            if (maxSample > peakLevel) {
+                                peakLevel = maxSample;
+                            }
+                            
                             audioQueue.push(float32Array);
                             
                             if (dataCount % 50 === 0) {
-                                console.log(`Received ${dataCount} audio chunks, queue size: ${audioQueue.length}, chunk size: ${int32Array.length} samples`);
+                                console.log(`Received ${dataCount} audio chunks, queue: ${audioQueue.length}, chunk: ${int32Array.length} samples, PEAK LEVEL: ${(peakLevel * 100).toFixed(1)}%`);
+                                peakLevel = 0; // Reset for next period
                             }
                             
                             // Limit queue size
