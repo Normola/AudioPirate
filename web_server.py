@@ -13,6 +13,7 @@ import json
 import secrets
 import hashlib
 import ssl
+import struct
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 import socket
@@ -158,7 +159,7 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
             
             pcm.setchannels(2)
             pcm.setrate(48000)
-            pcm.setformat(alsaaudio.PCM_FORMAT_S16_LE)  # 16-bit for browser compatibility
+            pcm.setformat(alsaaudio.PCM_FORMAT_S32_LE)  # Read native 32-bit format
             pcm.setperiodsize(2048)
             
             self.send_response(200)
@@ -167,19 +168,24 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
             self.send_header('Connection', 'close')
             self.end_headers()
             
-            wav_header = self._create_wav_header(48000, 2, 16)
+            wav_header = self._create_wav_header(48000, 2, 16)  # Stream as 16-bit
             self.wfile.write(wav_header)
             
-            print("Starting audio stream...")
+            print("Starting audio stream (32-bit -> 16-bit conversion)...")
             chunk_count = 0
             try:
                 while True:
                     length, data = pcm.read()
                     if length > 0:
+                        # Convert 32-bit samples to 16-bit
+                        samples_32 = struct.unpack(f'{len(data)//4}i', data)
+                        samples_16 = [max(-32768, min(32767, s >> 16)) for s in samples_32]
+                        data_16 = struct.pack(f'{len(samples_16)}h', *samples_16)
+                        
                         chunk_count += 1
                         if chunk_count % 50 == 0:  # Log every ~1 second
-                            print(f"Streaming... ({chunk_count} chunks, {len(data)} bytes)")
-                        self.wfile.write(data)
+                            print(f"Streaming... ({chunk_count} chunks, {len(data_16)} bytes)")
+                        self.wfile.write(data_16)
                         self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError):
                 print(f"Client disconnected from audio stream after {chunk_count} chunks")
