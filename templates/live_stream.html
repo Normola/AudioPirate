@@ -420,13 +420,13 @@
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 
                 // Create continuous ring buffer for smooth playback
-                const ringBufferSize = 48000 * 2; // 1 second of stereo audio
+                const ringBufferSize = 96000 * 2; // 2 seconds of stereo audio for safety
                 let ringBuffer = new Float32Array(ringBufferSize);
                 let writePos = 0;
                 let readPos = 0;
                 let bufferedSamples = 0;
                 let isPlaying = false;
-                const minBufferSize = 8192; // Wait for this much data before starting
+                const minBufferSize = 16384; // Larger buffer before starting
                 
                 // Create script processor for audio playback
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);

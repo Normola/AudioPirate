@@ -144,23 +144,14 @@ class AudioWebSocketServer:
                     import struct
                     samples = struct.unpack(f'<{len(data)//4}i', data)
                     
-                    # Amplify by configured gain with soft clipping
+                    # Amplify by configured gain with simple limiting
+                    max_val = 2147483647
                     amplified = []
                     for s in samples:
-                        # Apply gain
-                        amplified_sample = s * self.gain
-                        
-                        # Soft clip to prevent harsh distortion
-                        max_val = 2147483647.0
-                        if abs(amplified_sample) > max_val * 0.9:  # Start soft clipping at 90%
-                            if amplified_sample > 0:
-                                amplified_sample = max_val * 0.9 + (amplified_sample - max_val * 0.9) * 0.1
-                            else:
-                                amplified_sample = -max_val * 0.9 + (amplified_sample + max_val * 0.9) * 0.1
-                        
-                        # Hard limit
+                        amplified_sample = int(s * self.gain)
+                        # Simple hard limit to prevent overflow
                         amplified_sample = max(-max_val, min(max_val, amplified_sample))
-                        amplified.append(int(amplified_sample))
+                        amplified.append(amplified_sample)
                     
                     data = struct.pack(f'<{len(amplified)}i', *amplified)
                     
