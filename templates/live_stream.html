@@ -414,10 +414,8 @@
                     await audioContext.resume();
                 }
                 
-                // Create analyser
+                // Create analyser (will be configured later when setting up routing)
                 analyser = audioContext.createAnalyser();
-                analyser.fftSize = 2048;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
                 
                 // Create continuous ring buffer for smooth playback
                 const ringBufferSize = 48000 * 2 * 30; // 30 seconds of stereo audio
@@ -465,14 +463,23 @@
                     }
                 };
                 
-                // Setup audio routing - single path to avoid clicks
-                scriptNode.connect(analyser);
-                analyser.connect(audioContext.destination);
+                // Setup audio routing using a gain node to split the signal cleanly
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 1.0;
                 
-                // Setup MediaRecorder for recording functionality
-                // Connect analyser (not scriptNode) to avoid double-processing
+                scriptNode.connect(gainNode);
+                
+                // Connect to analyser for visualization
+                gainNode.connect(analyser);
+                analyser.fftSize = 2048;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                // Connect to destination for playback
+                gainNode.connect(audioContext.destination);
+                
+                // Setup MediaRecorder - connect gain node for clean signal
                 recordingStream = audioContext.createMediaStreamDestination();
-                analyser.connect(recordingStream);
+                gainNode.connect(recordingStream);
                 mediaRecorder = new MediaRecorder(recordingStream.stream, {
                     mimeType: 'audio/webm;codecs=opus'
                 });
