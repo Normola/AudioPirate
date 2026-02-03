@@ -28,7 +28,7 @@ class ButtonHandler:
     # Friendly aliases for button functions
     BUTTON_ALIASES = {
         "record": "A",
-        "play": "B",
+        "info": "B",      # Show recordings info
         "up": "X",
         "down": "Y",
     }

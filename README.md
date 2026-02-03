@@ -6,7 +6,7 @@ Audio recording application for Raspberry Pi Zero 2 W with Pimoroni Pirate Audio
 
 - **Audio Recording**: Record audio in WAV format (44.1kHz, stereo)
 - **ST7789 Display**: Real-time status display on 240x240 color LCD
-- **Button Controls**: Four physical buttons for all operations
+- **Button Controls**: Four physical buttons for recording control
 - **Mock Mode**: Can run on non-Pi systems for development/testing
 
 ## Hardware Requirements
@@ -105,7 +105,7 @@ Display and button outputs will print to console. GPIO and audio hardware are si
 ### Button Controls
 
 - **Button A (Record)**: Start/stop audio recording
-- **Button B (Play)**: Play the last recorded audio
+- **Button B (Info)**: Show recordings count and total size
 - **Button X (Up)**: Navigate menus (future feature)
 - **Button Y (Down)**: Navigate menus (future feature)
 

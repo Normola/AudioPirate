@@ -136,53 +136,6 @@ class AudioRecorder:
             
         return True
         
-    def play_audio(self, filename):
-        """Play an audio file"""
-        filepath = os.path.join(self.output_dir, filename)
-        
-        if not os.path.exists(filepath):
-            print(f"File not found: {filepath}")
-            return False
-            
-        if self.audio:
-            try:
-                # Open the wave file
-                wf = wave.open(filepath, 'rb')
-                
-                # Open stream
-                stream = self.audio.open(
-                    format=self.audio.get_format_from_width(wf.getsampwidth()),
-                    channels=wf.getnchannels(),
-                    rate=wf.getframerate(),
-                    output=True
-                )
-                
-                print(f"Playing {filepath}...")
-                
-                # Read and play data
-                data = wf.readframes(self.CHUNK)
-                while data:
-                    stream.write(data)
-                    data = wf.readframes(self.CHUNK)
-                    
-                # Clean up
-                stream.stop_stream()
-                stream.close()
-                wf.close()
-                
-                print("Playback finished")
-                return True
-                
-            except Exception as e:
-                print(f"Playback error: {e}")
-                return False
-        else:
-            # Mock mode
-            print(f"[AUDIO] Playing {filepath}")
-            time.sleep(2)  # Simulate playback
-            print(f"[AUDIO] Playback finished")
-            return True
-            
     def get_recording_duration(self):
         """Get current recording duration in seconds"""
         if self.recording and self.recording_start_time:

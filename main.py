@@ -26,14 +26,12 @@ class AudioPirateApp:
         """Handle button press events"""
         if button == "record":
             self.toggle_recording()
-        elif button == "play":
-            self.play_last_recording()
+        elif button == "info":
+            self.show_recordings_info()
         elif button == "up":
             self.navigate_up()
         elif button == "down":
             self.navigate_down()
-        elif button == "select":
-            self.select_item()
             
     def toggle_recording(self):
         """Start or stop audio recording"""
@@ -54,16 +52,15 @@ class AudioPirateApp:
             time.sleep(1)
             self.update_display()
             
-    def play_last_recording(self):
-        """Play the last recorded audio file"""
-        if self.recording_name:
-            self.display.show_message(f"Playing...")
-            self.recorder.play_audio(self.recording_name)
-            self.update_display()
-        else:
-            self.display.show_message("No recordings")
-            time.sleep(1)
-            self.update_display()
+    def show_recordings_info(self):
+        """Show information about recordings"""
+        recordings = self.recorder.list_recordings()
+        count = len(recordings)
+        total_size = sum(r['size'] for r in recordings) / (1024 * 1024)  # MB
+        self.display.show_message(f"{count} recordings")
+        print(f"Recordings: {count}, Total: {total_size:.1f}MB")
+        time.sleep(2)
+        self.update_display()
             
     def navigate_up(self):
         """Navigate up in menu"""
@@ -72,10 +69,8 @@ class AudioPirateApp:
     def navigate_down(self):
         """Navigate down in menu"""
         self.display.show_message("Nav Down")
-        
-    def select_item(self):
-        """Select current menu item"""
-        self.display.show_message("Select")
+        time.sleep(1)
+        self.update_display()
         
     def update_display(self):
         """Update the display with current status"""
