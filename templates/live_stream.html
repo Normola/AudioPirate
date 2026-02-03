@@ -88,6 +88,22 @@
             box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
         }
         
+        #recordBtn {
+            background: #dc2626;
+            color: white;
+        }
+        
+        #recordBtn:hover:not(:disabled) {
+            background: #b91c1c;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 38, 38, 0.4);
+        }
+        
+        #recordBtn.recording {
+            background: #ef4444;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -251,6 +267,7 @@
         <div class="controls">
             <button id="startBtn">Start Stream</button>
             <button id="stopBtn" disabled>Stop Stream</button>
+            <button id="recordBtn" disabled>⏺ Record</button>
             <button id="logoutBtn" class="logout-btn">Logout</button>
         </div>
         
@@ -269,6 +286,7 @@
         const logoutBtn = document.getElementById('logoutBtn');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
+        const recordBtn = document.getElementById('recordBtn');
         const status = document.getElementById('status');
         const statusText = document.getElementById('statusText');
         const visualizer = document.getElementById('visualizer');
@@ -284,6 +302,12 @@
         let scriptNode = null;
         let audioQueue = [];
         let sampleRate = 48000;
+        
+        // Recording state
+        let isRecording = false;
+        let recordedChunks = [];
+        let mediaRecorder = null;
+        let recordingStream = null;
         
         // Resize canvas
         visualizer.width = visualizer.offsetWidth;
@@ -384,12 +408,10 @@
             try {
                 // Create audio context
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log('Audio context created, state:', audioContext.state);
                 
                 // Resume audio context if suspended (browser autoplay policy)
                 if (audioContext.state === 'suspended') {
                     await audioContext.resume();
-                    console.log('Audio context resumed, state:', audioContext.state);
                 }
                 
                 // Create analyser
@@ -417,7 +439,7 @@
                     // Start playing only when we have enough buffered
                     if (!isPlaying && bufferedSamples >= minBufferSize) {
                         isPlaying = true;
-                        console.log('Starting playback with buffer:', bufferedSamples);
+                        console.log('Audio playback started');
                     }
                     
                     if (isPlaying && bufferedSamples >= samplesNeeded) {
@@ -428,11 +450,6 @@
                             readPos = (readPos + 2) % ringBufferSize;
                         }
                         bufferedSamples -= samplesNeeded;
-                        
-                        processCount++;
-                        if (processCount % 50 === 0) {
-                            console.log(`Playing: ${processCount} chunks, buffered: ${bufferedSamples} samples`);
-                        }
                     } else {
                         // Not enough data - output silence
                         outputL.fill(0);
@@ -446,6 +463,32 @@
                 
                 scriptNode.connect(analyser);
                 analyser.connect(audioContext.destination);
+                
+                // Setup MediaRecorder for recording functionality
+                recordingStream = audioContext.createMediaStreamDestination();
+                analyser.connect(recordingStream);
+                mediaRecorder = new MediaRecorder(recordingStream.stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        recordedChunks.push(e.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                    a.download = `audiopirate-${timestamp}.webm`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    recordedChunks = [];
+                    console.log('Recording saved');
+                };
                 
                 // Handle WebSocket messages for audio data
                 let dataCount = 0;
@@ -470,11 +513,6 @@
                             
                             if (maxSample > peakLevel) {
                                 peakLevel = maxSample;
-                            }
-                            
-                            if (dataCount % 50 === 0) {
-                                console.log(`Received ${dataCount} chunks, buffered: ${bufferedSamples}, chunk: ${int32Array.length} samples, PEAK: ${(peakLevel * 100).toFixed(1)}%`);
-                                peakLevel = 0;
                             }
                         });
                     } else {
@@ -503,6 +541,7 @@
                 // Update UI
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
+                recordBtn.disabled = false;
                 status.className = 'status streaming';
                 statusText.textContent = 'Streaming...';
                 
@@ -516,9 +555,31 @@
             }
         });
         
+        recordBtn.addEventListener('click', () => {
+            if (!isRecording) {
+                // Start recording
+                recordedChunks = [];
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtn.textContent = '⏹ Stop Recording';
+                recordBtn.classList.add('recording');
+                console.log('Recording started');
+            } else {
+                // Stop recording
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.textContent = '⏺ Record';
+                recordBtn.classList.remove('recording');
+            }
+        });
+        
         stopBtn.addEventListener('click', () => {
             if (websocket) {
                 websocket.send(JSON.stringify({ type: 'stop_stream' }));
+            }
+            if (isRecording && mediaRecorder) {
+                mediaRecorder.stop();
+                isRecording = false;
             }
             if (audioContext) {
                 audioContext.close();
@@ -535,6 +596,9 @@
             audioQueue = [];
             startBtn.disabled = false;
             stopBtn.disabled = true;
+            recordBtn.disabled = true;
+            recordBtn.textContent = '⏺ Record';
+            recordBtn.classList.remove('recording');
             status.className = 'status';
             statusText.textContent = 'Stopped';
             

@@ -43,7 +43,7 @@ class AudioWebSocketServer:
         self.ssl_context = None
         self.gain = gain  # Software gain multiplier for ADAU7002 (start conservative)
         
-        print(f"[WebSocket] Initializing server on port {port}, SSL: {use_ssl}, audio: {audio_device}, gain: {gain}x")
+        print(f"[WebSocket] Server initialized on port {port}")
         
     async def authenticate(self, websocket, message):
         """Handle authentication request"""
@@ -163,16 +163,6 @@ class AudioWebSocketServer:
                         amplified.append(int(amplified_sample))
                     
                     data = struct.pack(f'<{len(amplified)}i', *amplified)
-                    
-                    # Monitor audio levels (every 100 chunks)
-                    if chunk_count % 100 == 0:
-                        chunk_max = max(abs(s) for s in samples) if samples else 0
-                        amp_max = max(abs(s) for s in amplified) if amplified else 0
-                        max_sample = max(max_sample, chunk_max)
-                        orig_percent = (chunk_max / 2147483648.0) * 100
-                        amp_percent = (amp_max / 2147483648.0) * 100
-                        clipped = sum(1 for s in amplified if abs(s) >= 2147483647 * 0.95)
-                        print(f"[Audio] Chunk {chunk_count}: original={orig_percent:.1f}%, amplified={amp_percent:.1f}% (gain={self.gain}x, clipped={clipped}/{len(amplified)})")
                     
                     # Send amplified binary data
                     await websocket.send(data)
