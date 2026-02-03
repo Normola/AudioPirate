@@ -157,12 +157,27 @@ class AudioWebSocketServer:
     
     def _create_ssl_context(self):
         """Create SSL context for WSS connections"""
-        cert_file = os.path.join(self.cert_dir, 'cert.pem')
-        key_file = os.path.join(self.cert_dir, 'key.pem')
+        # Try multiple certificate locations
+        cert_locations = [
+            ('certs/cert.pem', 'certs/key.pem'),  # Expected location
+            ('audiopirate.crt', 'audiopirate.key'),  # Web server location
+            ('cert.pem', 'key.pem'),  # Current directory
+        ]
         
-        if not os.path.exists(cert_file) or not os.path.exists(key_file):
-            print(f"SSL certificates not found in {self.cert_dir}/")
-            print("WebSocket server will use the same certs as the web server")
+        cert_file = None
+        key_file = None
+        
+        for cert, key in cert_locations:
+            if os.path.exists(cert) and os.path.exists(key):
+                cert_file = cert
+                key_file = key
+                print(f"[WebSocket] Found SSL certificates: {cert_file}")
+                break
+        
+        if not cert_file:
+            print(f"[WebSocket] SSL certificates not found in:")
+            for cert, key in cert_locations:
+                print(f"  - {cert} / {key}")
             return None
         
         try:
@@ -170,7 +185,7 @@ class AudioWebSocketServer:
             ssl_context.load_cert_chain(cert_file, key_file)
             return ssl_context
         except Exception as e:
-            print(f"Error loading SSL certificates: {e}")
+            print(f"[WebSocket] Error loading SSL certificates: {e}")
             return None
     
     async def handler(self, websocket, path):
@@ -226,9 +241,9 @@ class AudioWebSocketServer:
             if self.use_ssl:
                 self.ssl_context = self._create_ssl_context()
                 if self.ssl_context:
-                    print(f"WebSocket server starting with SSL/TLS (wss://)")
+                    print(f"[WebSocket] SSL/TLS enabled (wss://)")
                 else:
-                    print(f"SSL certificates not found, falling back to ws://")
+                    print(f"[WebSocket] SSL certificates not found, falling back to ws://")
                     self.use_ssl = False
             
             # Start server
