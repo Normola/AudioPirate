@@ -414,119 +414,45 @@
                     await audioContext.resume();
                 }
                 
-                // Create analyser (will be configured later when setting up routing)
+                // Create analyser for visualization
                 analyser = audioContext.createAnalyser();
-                
-                // Create continuous ring buffer for smooth playback
-                const ringBufferSize = 48000 * 2 * 30; // 30 seconds of stereo audio
-                let ringBuffer = new Float32Array(ringBufferSize);
-                let writePos = 0;
-                let readPos = 0;
-                let bufferedSamples = 0;
-                let isPlaying = false;
-                const minBufferSize = 48000 * 2 * 3; // Wait for 3 seconds of audio before starting
-                const rebufferThreshold = 48000 * 2 * 2; // Rebuffer if drops below 2 seconds
-                
-                // Create script processor for audio playback
-                scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
-                let processCount = 0;
-                
-                scriptNode.onaudioprocess = (event) => {
-                    const outputL = event.outputBuffer.getChannelData(0);
-                    const outputR = event.outputBuffer.getChannelData(1);
-                    const samplesNeeded = outputL.length * 2; // stereo
-                    
-                    // Start playing only when we have enough buffered
-                    if (!isPlaying && bufferedSamples >= minBufferSize) {
-                        isPlaying = true;
-                        console.log('Audio playback started');
-                    }
-                    
-                    // Check if we need to rebuffer (buffer too low)
-                    if (isPlaying && bufferedSamples < rebufferThreshold) {
-                        isPlaying = false;
-                        console.warn('Rebuffering... (buffered:', bufferedSamples, ')');
-                    }
-                    
-                    if (isPlaying && bufferedSamples >= samplesNeeded) {
-                        // Read directly from ring buffer (no processing to avoid clicks)
-                        for (let i = 0; i < outputL.length; i++) {
-                            outputL[i] = ringBuffer[readPos];
-                            outputR[i] = ringBuffer[readPos + 1];
-                            readPos = (readPos + 2) % ringBufferSize;
-                        }
-                        bufferedSamples -= samplesNeeded;
-                    } else {
-                        // Not enough data - just output silence
-                        outputL.fill(0);
-                        outputR.fill(0);
-                    }
-                };
-                
-                // Setup audio routing using a gain node to split the signal cleanly
-                const gainNode = audioContext.createGain();
-                gainNode.gain.value = 1.0;
-                
-                scriptNode.connect(gainNode);
-                
-                // Connect to analyser for visualization
-                gainNode.connect(analyser);
                 analyser.fftSize = 2048;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
+                analyser.connect(audioContext.destination);
                 
-                // Connect to destination for playback
-                gainNode.connect(audioContext.destination);
-                
-                // Setup MediaRecorder - connect gain node for clean signal
-                recordingStream = audioContext.createMediaStreamDestination();
-                gainNode.connect(recordingStream);
-                mediaRecorder = new MediaRecorder(recordingStream.stream, {
-                    mimeType: 'audio/webm;codecs=opus'
-                });
-                
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        recordedChunks.push(e.data);
-                    }
-                };
-                
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-                    a.download = `audiopirate-${timestamp}.webm`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    recordedChunks = [];
-                    console.log('Recording saved');
-                };
+                // Audio playback using queued buffer sources
+                let nextPlayTime = 0;
+                const audioQueue = [];
                 
                 // Handle WebSocket messages for audio data
                 let dataCount = 0;
-                let peakLevel = 0;
                 websocket.onmessage = (event) => {
                     if (event.data instanceof Blob) {
-                        // Binary audio data
                         dataCount++;
                         event.data.arrayBuffer().then(buffer => {
-                            // Convert 32-bit int to Float32 (-1.0 to 1.0)
+                            // Convert 32-bit int to Float32
                             const int32Array = new Int32Array(buffer);
-                            let maxSample = 0;
+                            const audioBuffer = audioContext.createBuffer(2, int32Array.length / 2, 48000);
+                            const channelL = audioBuffer.getChannelData(0);
+                            const channelR = audioBuffer.getChannelData(1);
                             
-                            // Write directly to ring buffer
-                            for (let i = 0; i < int32Array.length; i++) {
-                                const sample = int32Array[i] / 2147483648.0;
-                                ringBuffer[writePos] = sample;
-                                writePos = (writePos + 1) % ringBufferSize;
-                                maxSample = Math.max(maxSample, Math.abs(sample));
+                            for (let i = 0; i < int32Array.length / 2; i++) {
+                                channelL[i] = int32Array[i * 2] / 2147483648.0;
+                                channelR[i] = int32Array[i * 2 + 1] / 2147483648.0;
                             }
-                            bufferedSamples = Math.min(bufferedSamples + int32Array.length, ringBufferSize);
                             
-                            if (maxSample > peakLevel) {
-                                peakLevel = maxSample;
+                            // Create and schedule buffer source
+                            const source = audioContext.createBufferSource();
+                            source.buffer = audioBuffer;
+                            source.connect(analyser);
+                            
+                            // Schedule playback
+                            const now = audioContext.currentTime;
+                            if (nextPlayTime < now) {
+                                nextPlayTime = now + 3.0; // 3 second initial buffer
                             }
+                            source.start(nextPlayTime);
+                            nextPlayTime += audioBuffer.duration;
                         });
                     } else {
                         // JSON message
