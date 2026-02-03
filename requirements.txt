@@ -1,13 +1,14 @@
 # AudioPirate Requirements
-# For Raspberry Pi Zero 2 W + AudioPirate Board
+# For Raspberry Pi Zero 2 W + Pimoroni Pirate Audio Board
 
 # GPIO and Hardware
 RPi.GPIO>=0.7.1
 
-# Display (SSD1306 OLED)
-luma.oled>=3.12.0
-luma.core>=2.4.0
+# Display (ST7789 SPI 240x240)
+st7789>=0.0.4
 Pillow>=9.0.0
+numpy>=1.21.0
+spidev>=3.5
 
 # Audio
 PyAudio>=0.2.13

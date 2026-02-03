@@ -16,13 +16,21 @@ import threading
 
 
 class ButtonHandler:
-    # Define GPIO pin mappings (adjust these based on your AudioPirate board)
+    # Pimoroni Pirate Audio button GPIO pin mappings
+    # Buttons are active LOW (pressed = LOW, released = HIGH)
     BUTTON_PINS = {
-        "record": 17,   # GPIO 17
-        "play": 27,     # GPIO 27
-        "up": 22,       # GPIO 22
-        "down": 23,     # GPIO 23
-        "select": 24,   # GPIO 24
+        "A": 5,         # GPIO 5 (Button A)
+        "B": 6,         # GPIO 6 (Button B)
+        "X": 16,        # GPIO 16 (Button X)
+        "Y": 24,        # GPIO 24 (Button Y)
+    }
+    
+    # Friendly aliases for button functions
+    BUTTON_ALIASES = {
+        "record": "A",
+        "play": "B",
+        "up": "X",
+        "down": "Y",
     }
     
     DEBOUNCE_TIME = 0.2  # 200ms debounce
@@ -64,7 +72,7 @@ class ButtonHandler:
         # Start mock button thread if needed (for testing on non-Pi systems)
         if self.mock_mode:
             print("Button handler running in mock mode")
-            print("Press keys: r=record, p=play, u=up, d=down, s=select")
+            print("Button mapping: A=record, B=play, X=up, Y=down")
             self._start_mock_input()
             
     def _on_button_event(self, button_name):
@@ -77,21 +85,27 @@ class ButtonHandler:
             
         self.last_press_time[button_name] = current_time
         
-        print(f"Button pressed: {button_name}")
+        # Map to friendly name if using aliases
+        friendly_name = button_name
+        for alias, btn in self.BUTTON_ALIASES.items():
+            if btn == button_name:
+                friendly_name = alias
+                break
         
-        # Call the callback
+        print(f"Button pressed: {button_name} ({friendly_name})")
+        
+        # Call the callback with the friendly name
         if self.callback:
-            self.callback(button_name)
+            self.callback(friendly_name)
             
     def _start_mock_input(self):
         """Start a thread to simulate button presses from keyboard (for testing)"""
         def input_loop():
             key_map = {
-                'r': 'record',
-                'p': 'play',
-                'u': 'up',
-                'd': 'down',
-                's': 'select',
+                'a': 'record',  # Button A
+                'b': 'play',    # Button B
+                'x': 'up',      # Button X
+                'y': 'down',    # Button Y
             }
             
             try:

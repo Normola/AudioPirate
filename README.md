@@ -1,32 +1,35 @@
 # AudioPirate
 
-Audio recording application for Raspberry Pi Zero 2 W with AudioPirate board.
+Audio recording application for Raspberry Pi Zero 2 W with Pimoroni Pirate Audio board.
 
 ## Features
 
 - **Audio Recording**: Record audio in WAV format (44.1kHz, stereo)
-- **OLED Display**: Real-time status display on SSD1306 128x64 OLED
-- **Button Controls**: Physical button interface for all operations
+- **ST7789 Display**: Real-time status display on 240x240 color LCD
+- **Button Controls**: Four physical buttons for all operations
 - **Mock Mode**: Can run on non-Pi systems for development/testing
 
 ## Hardware Requirements
 
 - Raspberry Pi Zero 2 W
-- AudioPirate board (audio interface + OLED display + buttons)
+- Pimoroni Pirate Audio board (any variant)
 - MicroSD card (8GB+ recommended)
 
 ## Default GPIO Pin Mapping
 
 ```
-Record Button: GPIO 17
-Play Button:   GPIO 27
-Up Button:     GPIO 22
-Down Button:   GPIO 23
-Select Button: GPIO 24
-Display I2C:   SDA=GPIO 2, SCL=GPIO 3 (I2C address 0x3C)
-```
+Button A: GPIO 5  (Record)
+Button B: GPIO 6  (Play)
+Button X: GPIO 16 (Up/Menu)
+Button Y: GPIO 24 (Down/Menu)
 
-Adjust pin mappings in [buttons.py](buttons.py) if your board uses different pins.
+Display: SPI0 (ST7789 240x240)
+  - MOSI: GPIO 10
+  - SCLK: GPIO 11
+  - CS:   GPIO 1
+  - DC:   GPIO 9
+  - BL:   GPIO 13
+```
 
 ## Installation
 
@@ -38,24 +41,49 @@ git clone <repository-url>
 cd AudioPirate
 ```
 
-2. Install system dependencies:
+2. Add device tree overlays to `/boot/config.txt`:
 ```bash
-sudo apt-get update
-sudo apt-get install -y python3-pip python3-dev libasound2-dev portaudio19-dev
+sudo nano /boot/config.txt
 ```
 
-3. Install Python dependencies:
+Add these lines:
+```
+# Enable HiFiBerry DAC for Pirate Audio
+dtoverlay=hifiberry-dac
+gpio=25=op,dh
+
+# Disable onboard audio (optional but recommended)
+dtparam=audio=off
+
+# For Dual Mic variant, also add:
+# dtoverlay=adau7002-simple
+```
+
+3. Enable SPI interface:
+```bash
+sudo raspi-config
+# Navigate to: Interface Options -> SPI -> Enable
+```
+
+4. Reboot:
+```bash
+sudo reboot
+```
+
+5. Install system dependencies:
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-pip python3-dev python3-numpy \
+    libasound2-dev portaudio19-dev libportaudio2 \
+    python3-spidev python3-rpi.gpio python3-pil
+```
+
+6. Install Python dependencies:
 ```bash
 pip3 install -r requirements.txt
 ```
 
-4. Enable I2C interface:
-```bash
-sudo raspi-config
-# Navigate to: Interface Options -> I2C -> Enable
-```
-
-5. Run the application:
+7. Run the application:
 ```bash
 python3 main.py
 ```
@@ -75,10 +103,10 @@ Display and button outputs will print to console. GPIO and audio hardware are si
 
 ### Button Controls
 
-- **Record**: Start/stop audio recording
-- **Play**: Play the last recorded audio
-- **Up/Down**: Navigate menus (future feature)
-- **Select**: Confirm selection (future feature)
+- **Button A (Record)**: Start/stop audio recording
+- **Button B (Play)**: Play the last recorded audio
+- **Button X (Up)**: Navigate menus (future feature)
+- **Button Y (Down)**: Navigate menus (future feature)
 
 ### Recordings
 
@@ -105,26 +133,34 @@ AudioPirate/
 
 Edit the class constants in each module to customize:
 
-- **Display** ([display.py](display.py)): Screen dimensions, I2C address
-- **Buttons** ([buttons.py](buttons.py)): GPIO pin assignments, debounce time
+- **Display** ([display.py](display.py)): Screen dimensions, SPI pins, backlight
+- **Buttons** ([buttons.py](buttons.py)): GPIO pin assignments (BCM 5, 6, 16, 24)
 - **Audio** ([audio_recorder.py](audio_recorder.py)): Sample rate, channels, format
 
 ## Troubleshooting
 
 ### Display not working
-- Check I2C is enabled: `sudo i2cdetect -y 1`
-- Verify I2C address (usually 0x3C or 0x3D)
-- Check connections: SDA to GPIO 2, SCL to GPIO 3
+- Check SPI is enabled: `ls /dev/spidev*` (should show spidev0.0, spidev0.1)
+- Verify with: `sudo raspi-config` -> Interface Options -> SPI -> Enabled
+- Check for errors in: `sudo dmesg | grep spi`
 
 ### Audio issues
-- Check audio devices: `arecord -l` and `aplay -l`
-- Test recording: `arecord -d 5 test.wav`
-- Ensure user is in audio group: `sudo usermod -a -G audio $USER`
+- Check DAC is loaded: `cat /proc/asound/cards` (should show "snd_rpi_hifiberry_dac")
+- Verify `/boot/config.txt` has: `dtoverlay=hifiberry-dac`
+- Test playback: `speaker-test -c2`
+- Check audio devices: `aplay -l` and `arecord -l`
+- For Dual Mic variant, ensure `dtoverlay=adau7002-simple` is in config.txt
+
+### Button issues
+- Check GPIO permissions: `sudo usermod -a -G gpio $USER`
+- Test manually: `gpio readall` or `pinout`
+- Buttons are active LOW (pull-up resistors enabled)
 
 ### Permission errors
 - GPIO access: `sudo usermod -a -G gpio $USER`
-- I2C access: `sudo usermod -a -G i2c $USER`
-- Then logout/login
+- SPI access: `sudo usermod -a -G spi $USER`
+- Audio access: `sudo usermod -a -G audio $USER`
+- Then logout/login or reboot
 
 ## Future Enhancements
 
