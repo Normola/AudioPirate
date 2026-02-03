@@ -400,28 +400,43 @@
                 // Create script processor for audio playback
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
                 let processCount = 0;
+                let lastChunk = null;
                 scriptNode.onaudioprocess = (event) => {
                     const outputL = event.outputBuffer.getChannelData(0);
                     const outputR = event.outputBuffer.getChannelData(1);
                     
                     if (audioQueue.length > 0) {
                         const chunk = audioQueue.shift();
+                        
+                        // Fill output buffer
                         for (let i = 0; i < outputL.length; i++) {
                             if (i * 2 < chunk.length) {
                                 outputL[i] = chunk[i * 2];
                                 outputR[i] = chunk[i * 2 + 1];
                             } else {
-                                outputL[i] = 0;
-                                outputR[i] = 0;
+                                // Smoothly fade to zero if chunk is short
+                                const fade = Math.max(0, 1 - (i - chunk.length/2) / 100);
+                                outputL[i] = lastChunk && lastChunk.length > i * 2 ? lastChunk[i * 2] * fade : 0;
+                                outputR[i] = lastChunk && lastChunk.length > i * 2 + 1 ? lastChunk[i * 2 + 1] * fade : 0;
                             }
                         }
+                        lastChunk = chunk;
                         processCount++;
                         if (processCount % 50 === 0) {
                             console.log(`Audio playing: ${processCount} chunks processed, queue size: ${audioQueue.length}`);
                         }
                     } else {
-                        outputL.fill(0);
-                        outputR.fill(0);
+                        // No data - smoothly fade out to prevent clicks
+                        if (lastChunk) {
+                            for (let i = 0; i < outputL.length; i++) {
+                                const fade = Math.max(0, 1 - i / 100);
+                                outputL[i] = lastChunk && lastChunk.length > i * 2 ? lastChunk[i * 2] * fade : 0;
+                                outputR[i] = lastChunk && lastChunk.length > i * 2 + 1 ? lastChunk[i * 2 + 1] * fade : 0;
+                            }
+                        } else {
+                            outputL.fill(0);
+                            outputR.fill(0);
+                        }
                     }
                 };
                 

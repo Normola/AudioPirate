@@ -113,7 +113,7 @@ class AudioWebSocketServer:
         pcm.setchannels(2)
         pcm.setrate(48000)
         pcm.setformat(alsaaudio.PCM_FORMAT_S32_LE)
-        pcm.setperiodsize(1024)  # Smaller chunks for lower latency
+        pcm.setperiodsize(2048)  # Match closer to browser buffer size for smooth playback
         
         # Send audio config to client
         await websocket.send(json.dumps({
