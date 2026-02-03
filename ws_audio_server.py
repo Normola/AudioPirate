@@ -31,7 +31,7 @@ except ImportError:
 class AudioWebSocketServer:
     """WebSocket server for real-time audio streaming"""
     
-    def __init__(self, port=8765, audio_device='hw:0,0', password='audiopirate', use_ssl=True, cert_dir='certs', gain=20.0):
+    def __init__(self, port=8765, audio_device='hw:0,0', password='audiopirate', use_ssl=True, cert_dir='certs', gain=3.0):
         self.port = port
         self.audio_device = audio_device
         self.password_hash = hashlib.sha256(password.encode()).hexdigest()
@@ -41,7 +41,7 @@ class AudioWebSocketServer:
         self.use_ssl = use_ssl
         self.cert_dir = cert_dir
         self.ssl_context = None
-        self.gain = gain  # Software gain multiplier for ADAU7002
+        self.gain = gain  # Software gain multiplier for ADAU7002 (start conservative)
         
         print(f"[WebSocket] Initializing server on port {port}, SSL: {use_ssl}, audio: {audio_device}, gain: {gain}x")
         
@@ -144,24 +144,35 @@ class AudioWebSocketServer:
                     import struct
                     samples = struct.unpack(f'<{len(data)//4}i', data)
                     
-                    # Amplify by configured gain
+                    # Amplify by configured gain with soft clipping
                     amplified = []
                     for s in samples:
-                        amplified_sample = int(s * self.gain)
-                        # Clip to prevent overflow
-                        amplified_sample = max(-2147483648, min(2147483647, amplified_sample))
-                        amplified.append(amplified_sample)
+                        # Apply gain
+                        amplified_sample = s * self.gain
+                        
+                        # Soft clip to prevent harsh distortion
+                        max_val = 2147483647.0
+                        if abs(amplified_sample) > max_val * 0.9:  # Start soft clipping at 90%
+                            if amplified_sample > 0:
+                                amplified_sample = max_val * 0.9 + (amplified_sample - max_val * 0.9) * 0.1
+                            else:
+                                amplified_sample = -max_val * 0.9 + (amplified_sample + max_val * 0.9) * 0.1
+                        
+                        # Hard limit
+                        amplified_sample = max(-max_val, min(max_val, amplified_sample))
+                        amplified.append(int(amplified_sample))
                     
                     data = struct.pack(f'<{len(amplified)}i', *amplified)
                     
                     # Monitor audio levels (every 100 chunks)
                     if chunk_count % 100 == 0:
-                        chunk_max = max(abs(s) for s in samples)
-                        amp_max = max(abs(s) for s in amplified)
+                        chunk_max = max(abs(s) for s in samples) if samples else 0
+                        amp_max = max(abs(s) for s in amplified) if amplified else 0
                         max_sample = max(max_sample, chunk_max)
                         orig_percent = (chunk_max / 2147483648.0) * 100
                         amp_percent = (amp_max / 2147483648.0) * 100
-                        print(f"[Audio] Chunk {chunk_count}: original={orig_percent:.1f}%, amplified={amp_percent:.1f}% (gain={self.gain}x)")
+                        clipped = sum(1 for s in amplified if abs(s) >= 2147483647 * 0.95)
+                        print(f"[Audio] Chunk {chunk_count}: original={orig_percent:.1f}%, amplified={amp_percent:.1f}% (gain={self.gain}x, clipped={clipped}/{len(amplified)})")
                     
                     # Send amplified binary data
                     await websocket.send(data)
