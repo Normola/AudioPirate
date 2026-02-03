@@ -21,7 +21,8 @@ class AudioPirateApp:
         self.buttons = ButtonHandler(self.on_button_press)
         self.recorder = AudioRecorder()
         self.web_server = WebServer(directory="recordings", port=8000, use_ssl=True)
-        self.ws_server = AudioWebSocketServer(port=8765, password='audiopirate', use_ssl=True)
+        # Use hw:0,0 directly instead of mic_with_gain (softvol not working)
+        self.ws_server = AudioWebSocketServer(port=8765, password='audiopirate', use_ssl=True, audio_device='hw:0,0')
         
         # App state
         self.is_recording = False

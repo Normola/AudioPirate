@@ -31,7 +31,7 @@ except ImportError:
 class AudioWebSocketServer:
     """WebSocket server for real-time audio streaming"""
     
-    def __init__(self, port=8765, audio_device='mic_with_gain', password='audiopirate', use_ssl=True, cert_dir='certs'):
+    def __init__(self, port=8765, audio_device='hw:0,0', password='audiopirate', use_ssl=True, cert_dir='certs', gain=20.0):
         self.port = port
         self.audio_device = audio_device
         self.password_hash = hashlib.sha256(password.encode()).hexdigest()
@@ -41,8 +41,9 @@ class AudioWebSocketServer:
         self.use_ssl = use_ssl
         self.cert_dir = cert_dir
         self.ssl_context = None
+        self.gain = gain  # Software gain multiplier for ADAU7002
         
-        print(f"[WebSocket] Initializing server on port {port}, SSL: {use_ssl}")
+        print(f"[WebSocket] Initializing server on port {port}, SSL: {use_ssl}, audio: {audio_device}, gain: {gain}x")
         
     async def authenticate(self, websocket, message):
         """Handle authentication request"""
@@ -143,11 +144,10 @@ class AudioWebSocketServer:
                     import struct
                     samples = struct.unpack(f'<{len(data)//4}i', data)
                     
-                    # Amplify by 10x (20dB boost) - adjust as needed
-                    gain = 10.0
+                    # Amplify by configured gain
                     amplified = []
                     for s in samples:
-                        amplified_sample = int(s * gain)
+                        amplified_sample = int(s * self.gain)
                         # Clip to prevent overflow
                         amplified_sample = max(-2147483648, min(2147483647, amplified_sample))
                         amplified.append(amplified_sample)
@@ -161,7 +161,7 @@ class AudioWebSocketServer:
                         max_sample = max(max_sample, chunk_max)
                         orig_percent = (chunk_max / 2147483648.0) * 100
                         amp_percent = (amp_max / 2147483648.0) * 100
-                        print(f"[Audio] Chunk {chunk_count}: original={orig_percent:.1f}%, amplified={amp_percent:.1f}% (gain={gain}x)")
+                        print(f"[Audio] Chunk {chunk_count}: original={orig_percent:.1f}%, amplified={amp_percent:.1f}% (gain={self.gain}x)")
                     
                     # Send amplified binary data
                     await websocket.send(data)
