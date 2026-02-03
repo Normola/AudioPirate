@@ -2,6 +2,7 @@
 # For Raspberry Pi Zero 2 W + Pimoroni Pirate Audio Board
 
 # GPIO and Hardware
+lgpio>=0.2.0.0
 gpiozero>=1.6.2
 RPi.GPIO>=0.7.1
 
