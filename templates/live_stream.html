@@ -426,8 +426,8 @@
                 let readPos = 0;
                 let bufferedSamples = 0;
                 let isPlaying = false;
-                const minBufferSize = 48000 * 2 * 10; // Wait for 10 seconds of audio before starting
-                const rebufferThreshold = 48000 * 2 * 5; // Rebuffer if drops below 5 seconds
+                const minBufferSize = 48000 * 2 * 3; // Wait for 3 seconds of audio before starting
+                const rebufferThreshold = 48000 * 2 * 2; // Rebuffer if drops below 2 seconds
                 
                 // Create script processor for audio playback
                 scriptNode = audioContext.createScriptProcessor(4096, 2, 2);
@@ -465,14 +465,14 @@
                     }
                 };
                 
-                // Setup audio routing (don't double-connect analyser)
+                // Setup audio routing - single path to avoid clicks
                 scriptNode.connect(analyser);
                 analyser.connect(audioContext.destination);
                 
                 // Setup MediaRecorder for recording functionality
-                // Connect scriptNode directly to recording stream to avoid double-connection
+                // Connect analyser (not scriptNode) to avoid double-processing
                 recordingStream = audioContext.createMediaStreamDestination();
-                scriptNode.connect(recordingStream);
+                analyser.connect(recordingStream);
                 mediaRecorder = new MediaRecorder(recordingStream.stream, {
                     mimeType: 'audio/webm;codecs=opus'
                 });
