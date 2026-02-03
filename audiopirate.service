@@ -4,13 +4,16 @@ After=network.target sound.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/AudioPirate
-ExecStart=/home/pi/AudioPirate/start.sh
+# Run as the current user - replace YOUR_USERNAME with your actual username
+# Find it with: whoami
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/AudioPirate
+ExecStart=/home/YOUR_USERNAME/AudioPirate/start.sh
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
+SupplementaryGroups=audio
 
 # Environment variables (if needed)
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
