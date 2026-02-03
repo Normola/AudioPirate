@@ -158,7 +158,7 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
             
             pcm.setchannels(2)
             pcm.setrate(48000)
-            pcm.setformat(alsaaudio.PCM_FORMAT_S16_LE)
+            pcm.setformat(alsaaudio.PCM_FORMAT_S32_LE)  # 32-bit for ADAU7002
             pcm.setperiodsize(2048)
             
             self.send_response(200)
@@ -167,7 +167,7 @@ class RecordingsHTTPHandler(SimpleHTTPRequestHandler):
             self.send_header('Connection', 'close')
             self.end_headers()
             
-            wav_header = self._create_wav_header(48000, 2, 16)
+            wav_header = self._create_wav_header(48000, 2, 32)  # 32-bit header
             self.wfile.write(wav_header)
             
             print("Starting audio stream...")
