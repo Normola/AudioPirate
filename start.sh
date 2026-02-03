@@ -41,13 +41,25 @@ curl -s http://localhost:4040/api/tunnels | python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
+    web_url = None
+    ws_url = None
     for tunnel in data['tunnels']:
         name = tunnel['name']
         url = tunnel['public_url']
-        if 'web' in name:
-            print(f\"  Web UI: {url}\")
-        elif 'websocket' in name or 'ws' in name:
-            print(f\"  WebSocket: {url.replace('https://', 'wss://')}\")
+        if name == 'web':
+            web_url = url
+        elif name == 'websocket':
+            ws_url = url.replace('https://', 'wss://')
+    
+    if web_url:
+        print(f'  Web UI: {web_url}')
+    if ws_url:
+        print(f'  WebSocket: {ws_url}')
+    
+    if not web_url and not ws_url:
+        print('  No tunnels found')
+        for tunnel in data['tunnels']:
+            print(f\"    {tunnel['name']}: {tunnel['public_url']}\")
 except Exception as e:
     print(f'  Check ngrok dashboard at: http://localhost:4040')
 " 2>/dev/null || echo "  Check ngrok dashboard at: http://localhost:4040"

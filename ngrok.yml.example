@@ -5,11 +5,13 @@ tunnels:
   web:
     proto: http
     addr: 8000
+    subdomain: audiopirate-web
     schemes:
       - https
   
   websocket:
     proto: http
     addr: 8765
+    subdomain: audiopirate-ws
     schemes:
       - https
