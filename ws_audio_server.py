@@ -124,6 +124,7 @@ class AudioWebSocketServer:
         
         print(f"Started audio stream for client (device: {device})")
         chunk_count = 0
+        max_sample = 0
         
         try:
             while True:
@@ -138,6 +139,15 @@ class AudioWebSocketServer:
                 # Read audio data
                 length, data = pcm.read()
                 if length > 0:
+                    # Monitor audio levels (every 100 chunks)
+                    if chunk_count % 100 == 0:
+                        import struct
+                        samples = struct.unpack(f'<{len(data)//4}i', data)
+                        chunk_max = max(abs(s) for s in samples)
+                        max_sample = max(max_sample, chunk_max)
+                        level_percent = (chunk_max / 2147483648.0) * 100
+                        print(f"[Audio] Chunk {chunk_count}: peak={level_percent:.1f}%, max so far={max_sample/2147483648.0*100:.1f}%")
+                    
                     # Send raw binary data
                     await websocket.send(data)
                     chunk_count += 1
