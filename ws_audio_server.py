@@ -139,16 +139,31 @@ class AudioWebSocketServer:
                 # Read audio data
                 length, data = pcm.read()
                 if length > 0:
+                    # Apply software gain boost (ADAU7002 has no hardware gain)
+                    import struct
+                    samples = struct.unpack(f'<{len(data)//4}i', data)
+                    
+                    # Amplify by 10x (20dB boost) - adjust as needed
+                    gain = 10.0
+                    amplified = []
+                    for s in samples:
+                        amplified_sample = int(s * gain)
+                        # Clip to prevent overflow
+                        amplified_sample = max(-2147483648, min(2147483647, amplified_sample))
+                        amplified.append(amplified_sample)
+                    
+                    data = struct.pack(f'<{len(amplified)}i', *amplified)
+                    
                     # Monitor audio levels (every 100 chunks)
                     if chunk_count % 100 == 0:
-                        import struct
-                        samples = struct.unpack(f'<{len(data)//4}i', data)
                         chunk_max = max(abs(s) for s in samples)
+                        amp_max = max(abs(s) for s in amplified)
                         max_sample = max(max_sample, chunk_max)
-                        level_percent = (chunk_max / 2147483648.0) * 100
-                        print(f"[Audio] Chunk {chunk_count}: peak={level_percent:.1f}%, max so far={max_sample/2147483648.0*100:.1f}%")
+                        orig_percent = (chunk_max / 2147483648.0) * 100
+                        amp_percent = (amp_max / 2147483648.0) * 100
+                        print(f"[Audio] Chunk {chunk_count}: original={orig_percent:.1f}%, amplified={amp_percent:.1f}% (gain={gain}x)")
                     
-                    # Send raw binary data
+                    # Send amplified binary data
                     await websocket.send(data)
                     chunk_count += 1
                     
