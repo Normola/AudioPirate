@@ -7,6 +7,7 @@ Audio recording application for Raspberry Pi Zero 2 W with Pimoroni Pirate Audio
 - **Audio Recording**: Record audio in WAV format (44.1kHz, stereo)
 - **ST7789 Display**: Real-time status display on 240x240 color LCD
 - **Button Controls**: Four physical buttons for recording control
+- **Web Server**: Built-in HTTP server for accessing recordings via browser
 - **Mock Mode**: Can run on non-Pi systems for development/testing
 
 ## Hardware Requirements
@@ -117,14 +118,22 @@ Audio files are saved in the `recordings/` directory with timestamps:
 - Channels: Stereo
 - Filename: `recording_<timestamp>.wav`
 
+### Web Access
+
+The app automatically starts a web server on port 8000:
+- Access recordings from any browser on your network
+- URL displayed on startup: `http://<pi-ip-address>:8000`
+- Browse, download, or play recordings directly from the web interface
+
 ## Project Structure
 
 ```
 AudioPirate/
 ├── main.py              # Main application entry point
-├── display.py           # OLED display handler
+├── display.py           # ST7789 display handler
 ├── buttons.py           # GPIO button handler
-├── audio_recorder.py    # Audio recording/playback
+├── audio_recorder.py    # Audio recording
+├── web_server.py        # HTTP server for file access
 ├── requirements.txt     # Python dependencies
 ├── recordings/          # Recorded audio files (created at runtime)
 └── README.md           # This file
@@ -166,10 +175,9 @@ Edit the class constants in each module to customize:
 
 ## Future Enhancements
 
-- [ ] Audio level metering during recording
-- [ ] Recording list browser
-- [ ] File management (delete, rename)
-- [ ] Audio format options (MP3, OGG)
+- [ ] Audio level metering d on display
+- [ ] File management via web interface (delete, rename)
+- [ ] Audio format options (MP3, OGG)ns (MP3, OGG)
 - [ ] WiFi file transfer
 - [ ] Settings menu
 - [ ] Battery status display

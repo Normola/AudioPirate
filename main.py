@@ -9,6 +9,7 @@ import threading
 from display import Display
 from buttons import ButtonHandler
 from audio_recorder import AudioRecorder
+from web_server import WebServer
 
 
 class AudioPirateApp:
@@ -17,6 +18,7 @@ class AudioPirateApp:
         self.display = Display()
         self.buttons = ButtonHandler(self.on_button_press)
         self.recorder = AudioRecorder()
+        self.web_server = WebServer(directory="recordings", port=8000)
         
         # App state
         self.is_recording = False
@@ -93,6 +95,9 @@ class AudioPirateApp:
         self.running = True
         print("AudioPirate App Starting...")
         
+        # Start web server
+        self.web_server.start()
+        
         # Initialize display
         self.display.clear()
         self.update_display()
@@ -110,7 +115,8 @@ class AudioPirateApp:
             self.cleanup()
             
     def cleanup(self):
-        """Clean up resources"""
+        """Clweb_server.stop()
+        self.ean up resources"""
         if self.is_recording:
             self.recorder.stop_recording()
         self.buttons.cleanup()
