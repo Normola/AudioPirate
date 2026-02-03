@@ -15,9 +15,9 @@ if ! command -v ngrok &> /dev/null; then
     exit 1
 fi
 
-# Check if venv exists
-if [ ! -d "venv" ]; then
-    echo "❌ Virtual environment not found. Run: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
+# Check if .venv exists
+if [ ! -d ".venv" ]; then
+    echo "❌ Virtual environment not found. Run: python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
     exit 1
 fi
 
@@ -55,7 +55,7 @@ echo ""
 echo "🚀 Starting AudioPirate application..."
 
 # Activate virtual environment and run main.py
-source venv/bin/activate
+source .venv/bin/activate
 python3 main.py
 
 # Cleanup on exit
