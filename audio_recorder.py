@@ -184,7 +184,8 @@ class AudioRecorder:
         if not self.is_recording or not self.start_time:
             return None
         return time.time() - self.start_time
-        def set_gain(self, percent):
+    
+    def set_gain(self, percent):
         """
         Set microphone gain level (0-100%)
         Requires asound.conf with softvol plugin
