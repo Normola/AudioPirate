@@ -20,7 +20,10 @@ class AudioPirateApp:
         self.display = Display()
         self.buttons = ButtonHandler(self.on_button_press)
         self.recorder = AudioRecorder()
-        self.web_server = WebServer(directory="recordings", port=8000, use_ssl=True)
+        # Disable SSL when using ngrok (ngrok handles SSL termination)
+        import os
+        use_ssl = not os.path.exists('ngrok.yml')
+        self.web_server = WebServer(directory="recordings", port=8000, use_ssl=use_ssl)
         # Use hw:0,0 directly instead of mic_with_gain (softvol not working)
         # Disable SSL on WebSocket - let reverse proxy (ngrok/nginx) handle SSL termination
         self.ws_server = AudioWebSocketServer(port=8765, password='audiopirate', use_ssl=False, audio_device='hw:0,0')

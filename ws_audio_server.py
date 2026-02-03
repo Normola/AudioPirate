@@ -245,6 +245,14 @@ class AudioWebSocketServer:
         except Exception as e:
             print(f"Handler error: {e}")
     
+    async def process_request(self, path, request_headers):
+        """
+        Process HTTP requests before WebSocket upgrade.
+        This allows ngrok to do health checks.
+        """
+        # Allow all WebSocket upgrade requests
+        return None  # Let the WebSocket upgrade proceed
+    
     async def start(self):
         """Start the WebSocket server"""
         if not WEBSOCKETS_AVAILABLE:
@@ -271,7 +279,8 @@ class AudioWebSocketServer:
                 ssl=self.ssl_context if self.use_ssl else None,
                 compression=None,  # Disable compression for ngrok compatibility
                 ping_interval=20,  # Keep connection alive
-                ping_timeout=20
+                ping_timeout=20,
+                process_request=self.process_request  # Handle HTTP health checks
             )
             
             protocol = "wss" if self.use_ssl else "ws"
