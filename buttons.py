@@ -27,7 +27,6 @@ class ButtonHandler:
     
     # Friendly aliases for button functions
     BUTTON_ALIASES = {
-        "record": "A",
         "info": "B",      # Show recordings info
         "up": "X",
         "down": "Y",
@@ -65,7 +64,7 @@ class ButtonHandler:
         # Start mock button thread if needed (for testing on non-Pi systems)
         if self.mock_mode:
             print("Button handler running in mock mode")
-            print("Button mapping: A=record, B=play, X=up, Y=down")
+            print("Button mapping: B=info, X=up, Y=down")
             self._start_mock_input()
             
     def _on_button_event(self, button_name):
@@ -95,8 +94,7 @@ class ButtonHandler:
         """Start a thread to simulate button presses from keyboard (for testing)"""
         def input_loop():
             key_map = {
-                'a': 'record',  # Button A
-                'b': 'play',    # Button B
+                'b': 'info',    # Button B
                 'x': 'up',      # Button X
                 'y': 'down',    # Button Y
             }

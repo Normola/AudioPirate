@@ -6,6 +6,8 @@ Raspberry Pi Zero 2 W + AudioPirate Board
 
 import time
 import threading
+import json
+import urllib.request
 from display import Display
 from buttons import ButtonHandler
 from audio_recorder import AudioRecorder
@@ -29,38 +31,36 @@ class AudioPirateApp:
         self.ws_server = AudioWebSocketServer(port=8765, password='audiopirate', use_ssl=False, audio_device='hw:0,0')
         
         # App state
-        self.is_recording = False
-        self.recording_name = None
+        self.ngrok_url = None
         
     def on_button_press(self, button):
         """Handle button press events"""
-        if button == "record":
-            self.toggle_recording()
-        elif button == "info":
+        if button == "info":
             self.show_recordings_info()
         elif button == "up":
             self.navigate_up()
         elif button == "down":
             self.navigate_down()
             
-    def toggle_recording(self):
-        """Start or stop audio recording"""
-        if not self.is_recording:
-            # Start recording
-            filename = f"recording_{int(time.time())}.wav"
-            self.recorder.start_recording(filename)
-            self.is_recording = True
-            self.recording_name = filename
-            self.display.show_message(f"REC: {filename}")
-            print(f"Started recording: {filename}")
-        else:
-            # Stop recording
-            self.recorder.stop_recording()
-            self.is_recording = False
-            self.display.show_message(f"Saved: {self.recording_name}")
-            print(f"Stopped recording: {self.recording_name}")
-            time.sleep(1)
-            self.update_display()
+    def get_ngrok_url(self):
+        """Get the ngrok public URL from the local API"""
+        try:
+            response = urllib.request.urlopen('http://localhost:4040/api/tunnels', timeout=2)
+            data = json.loads(response.read().decode('utf-8'))
+            
+            for tunnel in data.get('tunnels', []):
+                if tunnel.get('name') == 'web':
+                    url = tunnel.get('public_url', '')
+                    # Remove https:// prefix for display
+                    if url.startswith('https://'):
+                        url = url[8:]
+                    elif url.startswith('http://'):
+                        url = url[7:]
+                    return url
+            return None
+        except Exception as e:
+            print(f"Error getting ngrok URL: {e}")
+            return None
             
     def show_recordings_info(self):
         """Show information about recordings"""
@@ -84,18 +84,22 @@ class AudioPirateApp:
         
     def update_display(self):
         """Update the display with current status"""
-        if self.is_recording:
-            duration = self.recorder.get_recording_duration()
+        # Get fresh ngrok URL
+        url = self.get_ngrok_url()
+        
+        if url:
             self.display.show_status(
-                line1="RECORDING",
-                line2=f"Time: {duration:.1f}s",
-                line3=self.recording_name or ""
+                line1="AudioPirate",
+                line2="Web UI:",
+                line3=url[:30],  # First 30 chars
+                line4=url[30:] if len(url) > 30 else ""  # Remaining chars if needed
             )
         else:
             self.display.show_status(
-                line1="AudioPirate Ready",
-                line2="Press REC to start",
-                line3=""
+                line1="AudioPirate",
+                line2="Starting...",
+                line3="Waiting for ngrok",
+                line4=""
             )
             
     def run(self):
@@ -114,11 +118,14 @@ class AudioPirateApp:
         self.display.clear()
         self.update_display()
         
+        last_url_update = 0
+        
         try:
             while self.running:
-                # Update display if recording
-                if self.is_recording:
+                # Update display periodically to get latest ngrok URL
+                if time.time() - last_url_update > 5:
                     self.update_display()
+                    last_url_update = time.time()
                 
                 # Check for display timeout
                 self.display.check_timeout()
@@ -132,8 +139,6 @@ class AudioPirateApp:
             
     def cleanup(self):
         """Clean up resources"""
-        if self.is_recording:
-            self.recorder.stop_recording()
         self.buttons.cleanup()
         self.display.clear()
         self.display.cleanup()
